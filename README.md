@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 2026.09.13.1 · **Release status:** Private Preview
+> **Version:** 2026.09.13.3 · **Release status:** Private Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring developers to manage Kubernetes primitives directly.
 
@@ -61,6 +61,61 @@ kube-app render examples/basic.yaml
 The first direct Kubernetes-manifest example is available at
 `output/basic-manifest.yaml`. It contains a Deployment and a ClusterIP Service
 generated from `examples/basic.yaml`.
+
+### Configuration and storage
+
+An application declares the settings it reads and the data it keeps. It does
+not describe how Kubernetes delivers them.
+
+```yaml
+spec:
+  # Settings the application reads from its environment.
+  environment:
+    APP_ENV: production
+    LOG_LEVEL: info
+
+  # Sensitive settings. The platform team stores the value and tells you
+  # which provider to ask for.
+  secrets:
+    DATABASE_URL: catalog-db
+
+  # Settings shared with other applications.
+  configuration:
+    APP_CONFIG: catalog-config
+
+  # Data that must survive restarts.
+  storage:
+    data:
+      size: 10Gi
+      path: /data
+```
+
+`environment` takes plain key/value pairs. Numbers and booleans are accepted
+and passed through as strings.
+
+`secrets` and `configuration` map an environment-variable name to the name of a
+provider the platform team manages. kube-app reads the value under the key that
+matches the variable name, so `DATABASE_URL: catalog-db` expects the
+`catalog-db` provider to expose a `DATABASE_URL` entry. kube-app never creates
+or stores these providers; it only references them.
+
+`storage` is keyed by a name the application chooses, with a `size` and the
+`path` where the application expects to find the data. kube-app owns the
+persistent storage it creates for each entry and wires it into the workload.
+The storage access rules and the underlying resource names are platform
+decisions, not application ones.
+
+Variable names must be valid environment-variable names and unique across
+`environment`, `secrets`, and `configuration`. Two storage entries cannot claim
+the same path.
+
+An application using all of this is at
+`examples/configuration-and-storage.yaml`, with its generated manifest at
+`output/configuration-and-storage-manifest.yaml`.
+
+All four sections are optional. An application that omits them renders exactly
+the same Deployment and Service as before. The Helm-values generator does not
+map them yet; they are supported only by the direct Kubernetes renderer.
 
 Run the focused manifest tests:
 

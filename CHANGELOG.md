@@ -5,6 +5,49 @@ All notable changes to Kube-App are documented in this file.
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
 
+## 2026.09.13.3
+
+### Added
+
+- Application `spec.environment`: plain key/value settings delivered to the
+  container as environment variables. Numbers and booleans are accepted and
+  passed through as strings.
+- Application `spec.secrets`: maps an environment-variable name to the name of
+  a sensitive-value provider the platform team manages.
+- Application `spec.configuration`: maps an environment-variable name to the
+  name of a shared-configuration provider the platform team manages.
+- Application `spec.storage`: persistent application data, keyed by name, with
+  a `size` and a `path`.
+- Kubernetes renderer translation of the above into container `env`,
+  `env.valueFrom.secretKeyRef`, `env.valueFrom.configMapKeyRef`,
+  PersistentVolumeClaims, pod volumes, and container volume mounts, emitted in
+  the deterministic order PersistentVolumeClaim, Deployment, Service.
+- Example `examples/configuration-and-storage.yaml` and its generated manifest
+  `output/configuration-and-storage-manifest.yaml`.
+- Model and renderer tests for environment settings, secret and shared
+  configuration, single and multiple storage entries, invalid names, sizes and
+  paths, and a complete application using all four sections.
+
+### Notes
+
+- The public application schema describes application intent. Kubernetes
+  concepts — `secretKeyRef`, `configMapKeyRef`, volumes, volume mounts, access
+  modes, claim names — exist only in the renderer.
+- A provided value is read under the key matching the environment-variable
+  name, so `DATABASE_URL: catalog-db` expects a `DATABASE_URL` entry in the
+  `catalog-db` provider.
+- Secret and configuration providers are referenced, never created.
+  PersistentVolumeClaims are the only new object kube-app owns; their access
+  mode is a platform default.
+- Applications that do not use the new sections render exactly the same
+  Deployment and Service as before.
+
+### Pending
+
+- The Helm-values generator does not yet map `environment`, `secrets`,
+  `configuration`, or `storage`; the direct Kubernetes renderer is the only
+  implementation of these capabilities.
+
 ## 2026.09.13.1
 
 ### Added
