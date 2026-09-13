@@ -1,0 +1,23 @@
+apiVersion: kubeapp.dev/v1alpha1
+kind: Application
+
+metadata:
+  name: hello-world
+
+spec:
+  image: nginx:1.27
+
+  service:
+    port: 80
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  scaling:
+    min_replicas: 2
+    max_replicas: 5

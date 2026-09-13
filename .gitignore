@@ -1,0 +1,17 @@
+# IDE and agent-local files
+.idea/
+CODEX_CONTEXT.md
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Local Python environments and configuration
+.venv/
+venv/
+.env
+.env.*

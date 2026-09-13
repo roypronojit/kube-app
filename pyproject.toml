@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kube-app"
+version = "0.1.0"
+description = "A lightweight developer-facing Kubernetes application platform"
+requires-python = ">=3.11"
+
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "PyYAML>=6.0,<7.0",
+]
+
+[project.scripts]
+kube-app = "kubeapp.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
