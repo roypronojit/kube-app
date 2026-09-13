@@ -5,6 +5,15 @@ All notable changes to Kube-App are documented in this file.
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
 
+## 2026.09.13.1
+
+### Added
+
+- Distribution design requirement: development uses Python 3.11+, while future
+  end-user releases will be standalone binaries that bundle runtime
+  dependencies. PyInstaller will be evaluated after the core CLI, render
+  functionality, and tests are stable.
+
 ## 2026.09.13.0
 
 ### Added

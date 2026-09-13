@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 2026.09.13.0 · **Release status:** Private Preview
+> **Version:** 2026.09.13.1 · **Release status:** Private Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring developers to manage Kubernetes primitives directly.
 
@@ -81,6 +81,17 @@ The chart is present and can be checked with `helm lint charts/kube-app`, but
 the CLI does not yet invoke Helm or render Kubernetes manifests through Helm.
 Helm integration, including `helm template` and release installation, remains
 pending.
+
+### Distribution requirement: TBD
+
+Development uses Python 3.11 or later. End users, however, should use
+`kube-app` as a normal standalone CLI and must not need to install Python,
+Pydantic, PyYAML, or other runtime dependencies.
+
+After the core CLI, render functionality, and tests are stable, the project
+will distribute standalone binaries for major platforms. PyInstaller is the
+initial packaging option to evaluate. Packaging is intentionally deferred and
+does not change the current Python development workflow.
 
 ---
 
