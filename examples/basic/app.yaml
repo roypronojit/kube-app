@@ -1,0 +1,18 @@
+name: hello-world
+
+replicas: 2
+
+containers:
+  - name: hello-world
+    image: nginx:1.27
+
+    resources:
+      cpu:
+        min: 100m
+        max: 500m
+      memory:
+        min: 128Mi
+        max: 256Mi
+
+service:
+  port: 80

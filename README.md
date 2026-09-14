@@ -1,45 +1,50 @@
 # Kube-App
 
-> **Version:**  - 0.1.0 · **Release status:** Private Preview
+> **Version:** 0.1.0 · **Release status:** Development Preview
 
-A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring developers to manage Kubernetes primitives directly.
+A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
+
+![Kube-App Overview](docs/kubeapp-overview.png)
 
 ## Vision
 
-Kube-App aims to provide a simple, declarative application specification that allows developers to describe **what their application needs**, while the platform handles the underlying Kubernetes implementation, security defaults, operational standards, and deployment mechanisms.
+Kube-App provides a simple, declarative application specification that allows developers to describe **what their application needs**, while the platform translates that intent into Kubernetes resources.
 
-The long-term goal is to provide a consistent developer experience across Kubernetes platforms such as **Amazon EKS and Azure AKS**, while allowing platform teams to evolve the underlying implementation independently.
+The goal is to create a consistent developer experience while allowing platform teams to own Kubernetes implementation details, platform defaults, security standards, and operational conventions.
+
+Over time, Kube-App aims to support the same application model across Kubernetes environments such as **Amazon EKS**, **Azure AKS**, and local development clusters.
 
 ---
 
-## Core Concept
+## Why Kube-App?
 
-The public YAML describes application intent. Kube-App validates the model,
-applies defaults, and renders Kubernetes manifests directly.
+Kubernetes provides a powerful application platform, but application developers often need to understand infrastructure concepts that are not directly related to their application.
 
-See [the architecture](docs/ARCHITECTURE.md) and
-[rendering semantics](docs/RENDERING.md) for the schema, defaults, file inputs,
-and environment substitution.
+A typical deployment may require developers to work with:
 
-## Usage
+* Deployments
+* Services
+* ConfigMaps
+* Secrets
+* PersistentVolumeClaims
+* ServiceAccounts
+* labels and selectors
+* volumes and volume mounts
+* container resource requests and limits
 
-Use Python 3.11 or later:
+Kube-App introduces an application-oriented layer above these primitives.
 
-```sh
-python -m pip install -e .
-kube-app validate examples/medium/app.yaml
-kube-app render examples/medium/app.yaml -o examples/medium/rendered.yaml
-```
-
-Omit `-o` to write Kubernetes YAML to standard output. Basic, medium, and
-advanced are progressively richer examples of one flat schema:
+Instead of describing Kubernetes resources directly, developers describe application intent:
 
 ```yaml
 name: hello-world
+
 replicas: 2
+
 containers:
   - name: hello-world
     image: nginx:1.27
+
     resources:
       cpu:
         min: 100m
@@ -47,320 +52,541 @@ containers:
       memory:
         min: 128Mi
         max: 256Mi
+
 service:
   port: 80
 ```
 
-Top-level configuration, secrets, and storage define resources; container and
-init-container references define how they are consumed. `serviceAccount`
-references an existing account. Autoscaling is deferred.
+Kube-App validates the application definition, applies platform defaults, and renders the required Kubernetes manifests.
 
-Generated manifests live beside each application in [examples](examples/README.md). The advanced example's output
-uses `CATALOG_API_KEY=example-api-key` and demonstration database credentials.
-Never commit real credentials or manifests containing real secrets.
-
-See [examples](examples/README.md), [source guide](src/README.md), and [test guide](tests/README.md) for directory-specific workflows.
-
-Run all tests:
-
-```sh
-python -m unittest discover -s tests -v
-```
-
-### Helm status: TBD
-
-The chart is present and can be checked with `helm lint charts/kube-app`, but
-the CLI does not yet invoke Helm or render Kubernetes manifests through Helm.
-Helm integration, including `helm template` and release installation, remains
-pending.
-
-### Distribution requirement: TBD
-
-Development uses Python 3.11 or later. End users, however, should use
-`kube-app` as a normal standalone CLI and must not need to install Python,
-Pydantic, PyYAML, or other runtime dependencies.
-
-After the core CLI, render functionality, and tests are stable, the project
-will distribute standalone binaries for major platforms. PyInstaller is the
-initial packaging option to evaluate. Packaging is intentionally deferred and
-does not change the current Python development workflow.
+The objective is **not** to hide Kubernetes completely. Kubernetes remains the escape hatch for requirements that do not belong in the platform's paved road.
 
 ---
 
-# Development Roadmap
+## Core Concept
 
-The phases below record the original roadmap, including the previous CRD-style
-schema and Helm-first plan. Current behavior and schema are documented above
-and in `docs/ARCHITECTURE.md`; autoscaling and Helm remain future work.
-
-## Phase 1 — Application Abstraction
-
-Build the minimal developer-facing abstraction.
-
-### Goals
-
-* Define an application specification
-* Parse and validate `app.yaml`
-* Create a typed internal application model
-* Apply sensible platform defaults
-* Generate Helm values
-* Render Kubernetes manifests through Helm
-
-### Initial developer experience
-
-```bash
-kube-app validate app.yaml
-kube-app render app.yaml
-```
-
-### Example
-
-```yaml
-apiVersion: kubeapp.dev/v1alpha1
-kind: Application
-
-metadata:
-  name: hello-world
-
-spec:
-  image: nginx:1.27
-
-  service:
-    port: 80
-
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-  scaling:
-    minReplicas: 2
-    maxReplicas: 5
-```
-
-### Initial generated resources
-
-* Deployment
-* Service
-* HPA
-
----
-
-# Phase 2 — Platform Defaults & Security
-
-Introduce opinionated platform defaults so developers don't need to configure common Kubernetes operational and security settings.
-
-### Potential defaults
-
-* Non-root containers
-* `allowPrivilegeEscalation: false`
-* Dropped Linux capabilities where appropriate
-* Seccomp profile
-* Resource requests and limits
-* Readiness probes
-* Liveness probes
-* Standard labels
-* ServiceAccount
-* Rolling update strategy
-* PodDisruptionBudget where appropriate
-
-The platform should be **secure and operationally sound by default**, while still providing controlled escape hatches for legitimate application requirements.
-
----
-
-# Phase 3 — Validation & Testing
-
-Separate application specification validation from cluster-level policy enforcement.
-
-### Application validation
+The public YAML describes **application intent**, not Kubernetes implementation details.
 
 ```text
 app.yaml
    │
    ▼
-Schema validation
+Application Model
    │
-   ├── Required fields
-   ├── Valid values
-   ├── Resource quantities
-   ├── Scaling configuration
-   └── API version compatibility
-```
-
-### Testing
-
-Build automated tests for:
-
-* Application parsing
-* Schema validation
-* Default values
-* Invalid configurations
-* Helm values generation
-* Kubernetes manifest generation
-* Security defaults
-
-Add CI to perform:
-
-```text
-Commit
-  │
-  ├── Lint
-  ├── Unit tests
-  ├── Build
-  └── Package
-```
-
----
-
-# Phase 4 — Policy as Code
-
-Integrate **Kyverno** for cluster-level governance.
-
-The application platform should not attempt to implement its own Kubernetes policy engine.
-
-Instead:
-
-```text
-Developer
-    │
- app.yaml
-    ▼
-kube-app
-    │
-    ▼
-Helm
-    │
-    ▼
-Kubernetes
-    │
-    ▼
-Kyverno
-```
-
-### Example policies
-
-* Required labels
-* Security context requirements
-* Resource requirements
-* Image tag requirements
-* Restricted workload configurations
-* Platform-specific governance rules
-
-The architectural distinction is:
-
-> **Kube-App validates what an application specification means; Kyverno determines whether a resulting workload is allowed on the platform.**
-
----
-
-# Phase 5 — GitOps Integration
-
-Integrate with **Argo CD** to support GitOps-based deployment.
-
-```text
-Developer
-    │
- app.yaml
-    ▼
-   Git
-    │
-    ▼
- Argo CD
-    │
-    ▼
- kube-app / Helm
-    │
-    ▼
+   ▼
+Validation + Defaults
+   │
+   ▼
+Kubernetes Renderer
+   │
+   ▼
+Kubernetes Manifests
+   │
+   ▼
 Kubernetes
 ```
 
-Kube-App should integrate with Argo CD rather than attempting to replace it.
+The application model remains independent of the rendering implementation.
 
-The goal is to demonstrate how a developer-facing platform abstraction can work with existing cloud-native delivery tooling.
+This allows Kube-App to evolve its Kubernetes implementation without requiring application developers to rewrite their application definitions.
+
+For architectural details, see:
+
+* [Architecture](docs/ARCHITECTURE.md)
+* [Rendering semantics](docs/RENDERING.md)
 
 ---
 
-# Phase 6 — Kubernetes Networking
+# Quick Start
 
-Explore integration with **Cilium** for Kubernetes networking and security.
+## Requirements
 
-Potential capabilities include:
+Development currently requires:
 
-* NetworkPolicy
-* CiliumNetworkPolicy
-* Application-level network controls
-* Service-to-service communication policies
-* Network visibility
+* Python 3.11 or later
+* pip
+
+A Kubernetes cluster is **not required** to validate applications or render manifests.
+
+## Install for development
+
+From the repository root:
+
+```sh
+python -m pip install -e .
+```
+
+This installs the `kube-app` command.
+
+## Validate an application
+
+```sh
+kube-app validate examples/basic/app.yaml
+```
+
+## Render Kubernetes manifests
+
+Write the rendered manifests to standard output:
+
+```sh
+kube-app render examples/basic/app.yaml
+```
+
+Or write them to a file:
+
+```sh
+kube-app render examples/basic/app.yaml \
+  -o examples/basic/rendered.yaml
+```
+
+The same commands can also be invoked through Python:
+
+```sh
+python -m kubeapp validate examples/basic/app.yaml
+python -m kubeapp render examples/basic/app.yaml
+```
+
+---
+
+# Application Model
+
+Kube-App uses **one application schema**.
+
+Basic, medium, and advanced applications are not different modes or APIs. They are progressively richer uses of the same model.
+
+## Basic
+
+A basic application can define:
+
+* application name
+* replicas
+* containers
+* images
+* resources
+* service
 
 Example:
 
-```text
-Frontend
-    │
-    │ allowed
-    ▼
-Backend
-    │
-    │ allowed
-    ▼
-Database
+```yaml
+name: hello-world
+
+replicas: 2
+
+containers:
+  - name: hello-world
+    image: nginx:1.27
+
+    resources:
+      cpu:
+        min: 100m
+        max: 500m
+      memory:
+        min: 128Mi
+        max: 256Mi
+
+service:
+  port: 80
 ```
 
-The platform should expose simple application-level concepts while the platform team owns the underlying networking implementation.
+See [`examples/basic`](examples/basic/).
+
+## Medium
+
+A medium application builds on the same model with common runtime requirements such as:
+
+* environment variables
+* configuration
+* secrets
+* persistent storage
+* mounts
+* service options
+
+See [`examples/medium`](examples/medium/).
+
+## Advanced
+
+An advanced application can additionally demonstrate capabilities such as:
+
+* multiple containers
+* init containers
+* service accounts
+* file-based configuration
+* file-based secrets
+* shared storage
+
+See [`examples/advanced`](examples/advanced/).
+
+For complete examples and regeneration instructions, see the [examples guide](examples/README.md).
 
 ---
 
-# Phase 7 — Multi-Cloud Kubernetes
+# Resource Declaration and Consumption
 
-Evaluate the platform against multiple Kubernetes environments.
+Kube-App separates **resources that exist** from **how application components consume them**.
 
-Target environments:
-
-* Amazon EKS
-* Azure AKS
-* Local Kubernetes for development
-
-The developer specification should remain largely cloud-agnostic:
-
-```text
-                 app.yaml
-                    │
-             ┌──────┴──────┐
-             ▼             ▼
-            EKS           AKS
-             │             │
-        Kubernetes    Kubernetes
-```
-
-Cloud-specific implementation should remain behind the platform abstraction wherever practical.
-
----
-
-# Phase 8 — Observability
-
-Observability will remain deliberately decoupled from the core platform until the target organizational stack is established.
-
-Potential integrations may include:
-
-* Prometheus
-* OpenTelemetry
-* Azure Monitor
-* Log Analytics
-* Grafana
-* Microsoft Defender
-
-The goal is to keep the developer-facing application specification stable even if the underlying observability implementation changes.
+Top-level resources define what exists.
 
 For example:
 
 ```yaml
-observability:
-  enabled: true
+storage:
+  name: data
+  size: 10Gi
+  storageClass: fast
+  accessModes:
+    - ReadWriteOnce
 ```
 
-The platform should determine how that requirement is implemented.
+A container can then consume that storage:
+
+```yaml
+containers:
+  - name: catalog
+    image: registry.example.com/catalog:1.4.2
+
+    mounts:
+      - storage: data
+        path: /data
+```
+
+The same principle applies to configuration and secrets.
+
+This keeps resource ownership separate from container-specific consumption.
+
+---
+
+# Configuration and Secrets
+
+Configuration and secrets can be defined from inline data or files.
+
+Example configuration:
+
+```yaml
+configuration:
+  - name: catalog-config
+    data:
+      APP_ENV: production
+      LOG_LEVEL: info
+```
+
+File-based configuration:
+
+```yaml
+configuration:
+  - name: catalog-config
+    file: config/catalog.properties
+```
+
+Secrets can follow the same pattern:
+
+```yaml
+secrets:
+  - name: catalog-db
+    file: secrets/catalog-db.env
+```
+
+Application components determine how those resources are consumed.
+
+For example:
+
+```yaml
+containers:
+  - name: catalog
+    image: registry.example.com/catalog:1.4.2
+
+    secrets:
+      - name: catalog-db
+        as: environment
+
+    mounts:
+      - configuration: catalog-config
+        path: /etc/catalog
+```
+
+Files are resolved relative to the application definition during rendering.
+
+The advanced example contains demonstration credentials only.
+
+**Never commit real credentials, secret files, or rendered manifests containing real secret values.**
+
+See [Rendering Semantics](docs/RENDERING.md) for details about file inputs and environment substitution.
+
+---
+
+# Storage
+
+Kube-App models persistent application storage without requiring application developers to construct Kubernetes PersistentVolumeClaims directly.
+
+Example:
+
+```yaml
+storage:
+  name: data
+  size: 10Gi
+  storageClass: fast
+  accessModes:
+    - ReadWriteOnce
+```
+
+Kube-App renders a Kubernetes **PersistentVolumeClaim (PVC)**.
+
+It does **not** create PersistentVolumes directly.
+
+When a `storageClass` is specified, Kubernetes dynamic provisioning is expected to provide the underlying PersistentVolume.
+
+---
+
+# Services
+
+Applications can expose a service with a small application-level definition:
+
+```yaml
+service:
+  port: 8080
+```
+
+Service options can also be specified:
+
+```yaml
+service:
+  type: LoadBalancer
+  port: 8080
+```
+
+When an application contains multiple containers, the service can identify the target container:
+
+```yaml
+service:
+  type: LoadBalancer
+  port: 8080
+  container: catalog
+```
+
+Kube-App owns the Kubernetes labels, selectors, and other implementation details required to connect the Service to the workload.
+
+---
+
+# Generated Kubernetes Resources
+
+Depending on the application definition, Kube-App can currently render resources including:
+
+* Deployment
+* Service
+* ConfigMap
+* Secret
+* PersistentVolumeClaim
+
+Additional workload behavior is generated from the application model, including:
+
+* multiple containers
+* init containers
+* environment variables
+* resource requests and limits
+* configuration mounts
+* secret mounts
+* persistent storage mounts
+* service account references
+
+Rendered example manifests are committed beside their corresponding application definitions:
+
+```text
+examples/
+├── basic/
+│   ├── app.yaml
+│   └── rendered.yaml
+├── medium/
+│   ├── app.yaml
+│   └── rendered.yaml
+└── advanced/
+    ├── app.yaml
+    ├── rendered.yaml
+    ├── config/
+    │   └── catalog.properties
+    └── secrets/
+        └── catalog-db.env
+```
+
+---
+
+# Testing
+
+The test suite uses Python's standard-library `unittest` framework.
+
+Run the complete suite:
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+The tests cover:
+
+* application model validation
+* defaults and constraints
+* application intent validation
+* configuration and secret references
+* storage and mounts
+* services
+* multiple containers
+* init containers
+* manifest generation
+* CLI behavior
+* example output comparisons
+* compatibility behavior
+
+No running Kubernetes cluster or Helm installation is required for the Python test suite.
+
+See the [test guide](tests/README.md) for details.
+
+---
+
+# Current Architecture
+
+The current rendering path is:
+
+```text
+Developer / CI/CD
+       │
+       │ app.yaml
+       ▼
+      CLI
+       │
+       ▼
+     Parser
+       │
+       ▼
+Application Model
+       │
+       ▼
+Kubernetes Renderer
+       │
+       ▼
+Kubernetes Manifests
+```
+
+The key implementation rule is:
+
+> **The application model must remain independent of the renderer.**
+
+This allows alternative rendering approaches to be introduced later without redefining the developer-facing application contract.
+
+See [Architecture](docs/ARCHITECTURE.md) for the architectural source of truth.
+
+---
+
+# Helm Status
+
+Helm integration is currently **deferred**.
+
+The repository contains a Helm chart and retained compatibility code for Helm values generation, but the public `kube-app render` command does **not** use Helm.
+
+The current path renders Kubernetes manifests directly from the application model.
+
+The existing chart can be checked independently with:
+
+```sh
+helm lint charts/kube-app
+```
+
+A future Helm renderer may be introduced as an alternative rendering backend, but Helm must not define the public application model.
+
+---
+
+# Distribution
+
+Kube-App currently runs as a Python application during development.
+
+The intended end-user experience is a standalone CLI:
+
+```sh
+kube-app validate app.yaml
+kube-app render app.yaml
+```
+
+End users should eventually **not need to install Python, Pydantic, PyYAML, or other runtime dependencies**.
+
+Standalone packaging is intentionally deferred until the core application model and CLI stabilize.
+
+---
+
+# Roadmap
+
+Kube-App is intentionally being developed incrementally.
+
+## v0.1 — Core Application Abstraction
+
+Current focus:
+
+* developer-facing application schema
+* typed application model
+* validation and defaults
+* direct Kubernetes manifest rendering
+* Deployment and Service generation
+* configuration and secrets
+* persistent storage
+* multiple containers
+* init containers
+* service account references
+* deterministic examples
+* automated tests
+
+## Platform Defaults and Security
+
+Future work may introduce platform-owned defaults such as:
+
+* container security defaults
+* non-root execution
+* dropped Linux capabilities
+* seccomp profiles
+* health probes
+* rollout strategies
+* standard labels
+* disruption protection
+
+These should remain platform concerns wherever possible rather than forcing application developers to understand Kubernetes implementation details.
+
+## Policy as Code
+
+Kube-App may integrate with policy engines such as **Kyverno** for cluster-level governance.
+
+The architectural boundary is:
+
+> **Kube-App validates what an application specification means; cluster policy determines whether the resulting workload is allowed on the platform.**
+
+## GitOps
+
+Future integration with tools such as **Argo CD** can provide GitOps-based delivery.
+
+Kube-App should integrate with established GitOps tooling rather than attempting to replace it.
+
+## Networking
+
+Future platform capabilities may explore **Cilium** and Kubernetes networking policy while keeping the developer-facing model application-oriented.
+
+## Multi-Cloud Kubernetes
+
+The application model should remain largely independent of the Kubernetes distribution.
+
+Target environments may include:
+
+* Amazon EKS
+* Azure AKS
+* local Kubernetes environments
+
+Cloud-specific implementation should remain behind the platform abstraction wherever practical.
+
+## Observability
+
+Observability is deliberately decoupled from the core application model until the target platform stack is established.
+
+Potential integrations may include:
+
+* OpenTelemetry
+* Prometheus
+* Grafana
+* Azure Monitor
+* other platform-owned observability systems
+
+The application contract should remain stable even if the underlying observability implementation changes.
 
 ---
 
@@ -368,53 +594,39 @@ The platform should determine how that requirement is implemented.
 
 ## 1. Developer Simplicity
 
-Developers should describe application intent rather than Kubernetes implementation details.
+Application developers should describe application requirements rather than Kubernetes implementation details.
 
-## 2. Secure by Default
+## 2. Progressive Complexity
 
-Common security and operational requirements should be provided automatically.
+Simple applications should remain simple.
+
+More advanced applications can opt into additional capabilities without requiring a separate schema or mode.
 
 ## 3. Platform-Owned Standards
 
-The platform team owns defaults, governance, policies, and infrastructure.
+Platform teams own defaults, governance, security standards, and infrastructure implementation.
 
-## 4. Kubernetes Native
+## 4. Separation of Concerns
 
-Kube-App should integrate with Kubernetes-native and CNCF technologies rather than unnecessarily replacing them.
+Application intent, validation, rendering, policy enforcement, GitOps, networking, and infrastructure should remain distinct concerns.
 
-## 5. Separation of Concerns
+## 5. Kubernetes Native
 
-```text
-Kube-App
-    │
-    ├── Developer experience
-    ├── Application specification
-    └── Platform defaults
-
-Helm
-    │
-    └── Kubernetes resource templating
-
-Argo CD
-    │
-    └── GitOps delivery
-
-Kyverno
-    │
-    └── Policy enforcement
-
-Cilium
-    │
-    └── Networking and network security
-```
+Kube-App should work with Kubernetes and cloud-native technologies rather than unnecessarily replacing them.
 
 ## 6. Cloud Agnostic Where Practical
 
-The developer experience should not depend on whether the workload ultimately runs on EKS, AKS, or another Kubernetes distribution.
+The developer-facing application model should not depend on whether the workload ultimately runs on EKS, AKS, or another Kubernetes distribution.
 
 ## 7. Don't Reinvent Mature Tools
 
-Kube-App should provide the missing developer/platform abstraction while leveraging existing technologies for their intended purposes.
+Kube-App should provide the missing developer/platform abstraction while relying on established tools for capabilities they already solve well.
+
+## 8. Kubernetes as the Escape Hatch
+
+Kube-App should provide a useful paved road, not attempt to model every Kubernetes capability.
+
+Requirements outside that paved road can continue to use Kubernetes directly.
 
 ---
 
@@ -422,128 +634,98 @@ Kube-App should provide the missing developer/platform abstraction while leverag
 
 ```text
 kubeApp/
-|-- src/
-|   |-- README.md
-|   `-- kubeapp/          # CLI, models, parser, manifests, legacy generator
-|-- charts/kube-app/      # Helm chart; CLI integration deferred
-|-- examples/
-|   |-- README.md
-|   |-- basic/
-|   |   |-- app.yaml
-|   |   `-- rendered.yaml
-|   |-- medium/
-|   |   |-- app.yaml
-|   |   `-- rendered.yaml
-|   `-- advanced/
-|       |-- app.yaml
-|       |-- rendered.yaml
-|       |-- config/catalog.properties
-|       `-- secrets/catalog-db.env
-|-- tests/
-|   |-- README.md
-|   |-- test_cli.py
-|   |-- test_intent.py
-|   |-- test_models.py
-|   |-- test_manifests.py
-|   `-- test_generators.py
-|-- docs/
-|   |-- ARCHITECTURE.md
-|   `-- RENDERING.md
-|-- pyproject.toml
-|-- README.md
-|-- CHANGELOG.md
-`-- CODEX_CONTEXT.md
+├── src/
+│   ├── README.md
+│   └── kubeapp/
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── cli.py
+│       ├── parser.py
+│       ├── models.py
+│       ├── manifests.py
+│       └── generators.py
+│
+├── examples/
+│   ├── README.md
+│   ├── basic/
+│   ├── medium/
+│   └── advanced/
+│
+├── tests/
+│   ├── README.md
+│   ├── test_cli.py
+│   ├── test_intent.py
+│   ├── test_models.py
+│   ├── test_manifests.py
+│   └── test_generators.py
+│
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── RENDERING.md
+│   └── kubeapp-overview.png
+│
+├── charts/
+│   └── kube-app/
+│
+├── pyproject.toml
+├── CHANGELOG.md
+└── README.md
 ```
+
+Directory-specific documentation:
+
+* [Architecture](docs/ARCHITECTURE.md)
+* [Rendering semantics](docs/RENDERING.md)
+* [Examples](examples/README.md)
+* [Source guide](src/README.md)
+* [Test guide](tests/README.md)
 
 ---
 
-# First Milestone
+# Development Principles
 
-The first milestone intentionally remains small.
+When considering a new kube-app capability, ask:
 
-### Target
+1. Is this an application requirement?
+2. Is it common enough to belong on the paved road?
+3. Can an ordinary application developer understand it?
+4. Can the renderer translate it cleanly?
+5. Does it keep the public YAML simpler than the Kubernetes resources it replaces?
+
+The preferred development flow is:
 
 ```text
-app.yaml
-    │
-    ▼
-Pydantic model
-    │
-    ▼
+Application Model
+       ↓
 Validation
-    │
-    ▼
-Helm values
-    │
-    ▼
-Helm chart
-    │
-    ▼
-Kubernetes manifests
+       ↓
+Renderer
+       ↓
+Tests
+       ↓
+CLI
 ```
 
-A successful first milestone should allow:
-
-```bash
-kube-app validate examples/basic/app.yaml
-kube-app render examples/basic/app.yaml
-```
-
-and produce valid Kubernetes resources through the project's Helm chart.
-
-### Not included in V1
-
-* Argo CD
-* Kyverno
-* Cilium
-* Cloud APIs
-* Web UI
-* Database
-* Kubernetes operator/controller
-* Multi-cluster management
-
-These will only be introduced after the core abstraction is stable.
+Changes should remain incremental and preserve separation between the application model and rendering implementation.
 
 ---
 
-# Long-Term Architecture
+# Project Status
 
-```text
-                         Developer
-                             │
-                             │ app.yaml
-                             ▼
-                    ┌─────────────────┐
-                    │    Kube-App     │
-                    │                 │
-                    │ Developer       │
-                    │ Abstraction     │
-                    └────────┬────────┘
-                             │
-                             ▼
-                           Helm
-                             │
-                 ┌───────────┼───────────┐
-                 │           │           │
-              Kyverno      Argo CD     Cilium
-              Policy       GitOps      Network
-                 │           │           │
-                 └───────────┼───────────┘
-                             ▼
-                        Kubernetes
-                         /       \
-                        /         \
-                      EKS         AKS
-```
+Kube-App is currently a **development preview**.
+
+The `0.x` releases should be considered experimental. The public application schema may evolve as the project gains capabilities and real-world usage.
+
+A future `1.0.0` release would indicate that the core developer-facing application contract is considered stable enough for broader compatibility expectations.
 
 ---
 
 # Project Philosophy
 
-The project is intentionally designed around a simple question:
+Kube-App is built around a simple question:
 
 > **Can we make Kubernetes easier for application developers while giving platform teams stronger control over standards, security, and operations?**
 
 The objective is not to build another Helm, another GitOps engine, or another Kubernetes abstraction for its own sake.
 
-The objective is to explore what a **developer-friendly, policy-driven Kubernetes platform experience** can look like while building on existing cloud-native technologies.
+The objective is to explore what a **developer-friendly, platform-owned Kubernetes experience** can look like while building on existing cloud-native technologies.
