@@ -1,0 +1,63 @@
+name: catalog
+
+replicas: 3
+
+configuration:
+  - name: catalog-config
+    data:
+      APP_ENV: production
+      LOG_LEVEL: info
+
+secrets:
+  - name: catalog-db
+    data:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: catalog
+      DB_USER: catalog
+      DB_PASSWORD: change-me
+
+storage:
+  name: data
+  size: 10Gi
+  storageClass: fast
+  accessModes:
+    - ReadWriteOnce
+
+containers:
+  - name: catalog
+    image: registry.example.com/catalog:1.4.2
+
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: info
+
+    configuration:
+      - name: catalog-config
+        as: environment
+
+    secrets:
+      - name: catalog-db
+        as: environment
+
+    mounts:
+      - configuration: catalog-config
+        path: /etc/catalog
+
+      - secret: catalog-db
+        path: /etc/catalog/secrets
+
+      - storage: data
+        path: /data
+
+    resources:
+      cpu:
+        min: 250m
+        max: 1
+      memory:
+        min: 256Mi
+        max: 512Mi
+
+service:
+  type: LoadBalancer
+  port: 8080

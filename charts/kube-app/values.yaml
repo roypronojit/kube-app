@@ -1,0 +1,27 @@
+name: ""
+
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+
+resources: {}
+
+scaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+
+ingress:
+  enabled: false
+
+serviceAccount:
+  create: true
+
+podDisruptionBudget:
+  enabled: false
