@@ -1,7 +1,7 @@
 import unittest
 
 from kubeapp.generators import application_to_helm_values
-from kubeapp.models import Application
+from kubeapp.models import LegacyApplication as Application
 
 
 class ApplicationToHelmValuesTests(unittest.TestCase):
@@ -64,6 +64,23 @@ class ApplicationToHelmValuesTests(unittest.TestCase):
                 "image": {"repository": "nginx", "tag": "latest"},
             },
         )
+
+    def test_rejects_applications_that_define_containers(self) -> None:
+        application = Application.model_validate(
+            {
+                "apiVersion": "kubeapp.dev/v1alpha1",
+                "kind": "Application",
+                "metadata": {"name": "catalog"},
+                "spec": {
+                    "containers": [
+                        {"name": "catalog", "image": "catalog:1.0"},
+                    ],
+                },
+            }
+        )
+
+        with self.assertRaises(ValueError):
+            application_to_helm_values(application)
 
     def test_preserves_registry_port_in_untagged_image(self) -> None:
         application = Application.model_validate(

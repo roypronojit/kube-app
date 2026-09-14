@@ -1,9 +1,10 @@
 import argparse
 import sys
+from pathlib import Path
 
 import yaml
 
-from kubeapp.generators import application_to_helm_values
+from kubeapp.manifests import application_to_kubernetes_manifests
 from kubeapp.parser import ApplicationParseError, load_application
 
 
@@ -30,13 +31,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     render_parser = subparsers.add_parser(
         "render",
-        help="Generate Helm values from an application definition",
+        help="Generate Kubernetes manifests from an application definition",
     )
 
     render_parser.add_argument(
         "file",
         help="Path to the application YAML file",
     )
+
+    render_parser.add_argument("-o", "--output", help="Write manifests to this file")
 
     return parser
 
@@ -54,19 +57,25 @@ def main() -> int:
             return 1
 
         if args.command == "validate":
-            print(
-                f"Application '{application.metadata.name}' "
-                "is valid."
-            )
+            print(f"Application '{application.name}' is valid.")
             return 0
 
-        print(
-            yaml.safe_dump(
-                application_to_helm_values(application),
-                sort_keys=False,
-            ),
-            end="",
-        )
+        try:
+            manifests = application_to_kubernetes_manifests(
+                application, Path(args.file).resolve().parent
+            )
+            rendered = yaml.safe_dump_all(manifests, sort_keys=False)
+            if args.output:
+                output = Path(args.output)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(rendered, encoding="utf-8")
+            else:
+                print(rendered, end="")
+
+        except (ValueError, OSError) as exc:
+            print(f"Render failed:\n{exc}", file=sys.stderr)
+            return 1
+
         return 0
 
     parser.print_help()

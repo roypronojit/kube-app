@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 2026.09.13.3 · **Release status:** Private Preview
+> **Version:**  - 0.1.0 · **Release status:** Private Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring developers to manage Kubernetes primitives directly.
 
@@ -14,120 +14,57 @@ The long-term goal is to provide a consistent developer experience across Kubern
 
 ## Core Concept
 
-```text
-Developer
-    │
-    │ app.yaml
-    ▼
-┌─────────────────────┐
-│     kube-app CLI    │
-│                     │
-│ Parse + Validate    │
-│ Apply defaults      │
-│ Generate values     │
-└──────────┬──────────┘
-           │
-           ▼
-       Helm Chart
-           │
-           ▼
-      Kubernetes
-```
+The public YAML describes application intent. Kube-App validates the model,
+applies defaults, and renders Kubernetes manifests directly.
 
-The developer interacts primarily with `app.yaml` rather than directly managing Kubernetes Deployments, Services, HPAs, security contexts, and other platform resources.
-
----
+See [the architecture](docs/ARCHITECTURE.md) and
+[rendering semantics](docs/RENDERING.md) for the schema, defaults, file inputs,
+and environment substitution.
 
 ## Usage
 
-Use Python 3.11 or later and install the project dependencies:
+Use Python 3.11 or later:
 
-```bash
-python3 -m pip install -e .
+```sh
+python -m pip install -e .
+kube-app validate examples/medium/app.yaml
+kube-app render examples/medium/app.yaml -o examples/medium/rendered.yaml
 ```
 
-Validate an application definition:
-
-```bash
-kube-app validate examples/basic.yaml
-```
-
-Generate the current Helm-values representation to standard output:
-
-```bash
-kube-app render examples/basic.yaml
-```
-
-The first direct Kubernetes-manifest example is available at
-`output/basic-manifest.yaml`. It contains a Deployment and a ClusterIP Service
-generated from `examples/basic.yaml`.
-
-### Configuration and storage
-
-An application declares the settings it reads and the data it keeps. It does
-not describe how Kubernetes delivers them.
+Omit `-o` to write Kubernetes YAML to standard output. Basic, medium, and
+advanced are progressively richer examples of one flat schema:
 
 ```yaml
-spec:
-  # Settings the application reads from its environment.
-  environment:
-    APP_ENV: production
-    LOG_LEVEL: info
-
-  # Sensitive settings. The platform team stores the value and tells you
-  # which provider to ask for.
-  secrets:
-    DATABASE_URL: catalog-db
-
-  # Settings shared with other applications.
-  configuration:
-    APP_CONFIG: catalog-config
-
-  # Data that must survive restarts.
-  storage:
-    data:
-      size: 10Gi
-      path: /data
+name: hello-world
+replicas: 2
+containers:
+  - name: hello-world
+    image: nginx:1.27
+    resources:
+      cpu:
+        min: 100m
+        max: 500m
+      memory:
+        min: 128Mi
+        max: 256Mi
+service:
+  port: 80
 ```
 
-`environment` takes plain key/value pairs. Numbers and booleans are accepted
-and passed through as strings.
+Top-level configuration, secrets, and storage define resources; container and
+init-container references define how they are consumed. `serviceAccount`
+references an existing account. Autoscaling is deferred.
 
-`secrets` and `configuration` map an environment-variable name to the name of a
-provider the platform team manages. kube-app reads the value under the key that
-matches the variable name, so `DATABASE_URL: catalog-db` expects the
-`catalog-db` provider to expose a `DATABASE_URL` entry. kube-app never creates
-or stores these providers; it only references them.
+Generated manifests live beside each application in [examples](examples/README.md). The advanced example's output
+uses `CATALOG_API_KEY=example-api-key` and demonstration database credentials.
+Never commit real credentials or manifests containing real secrets.
 
-`storage` is keyed by a name the application chooses, with a `size` and the
-`path` where the application expects to find the data. kube-app owns the
-persistent storage it creates for each entry and wires it into the workload.
-The storage access rules and the underlying resource names are platform
-decisions, not application ones.
+See [examples](examples/README.md), [source guide](src/README.md), and [test guide](tests/README.md) for directory-specific workflows.
 
-Variable names must be valid environment-variable names and unique across
-`environment`, `secrets`, and `configuration`. Two storage entries cannot claim
-the same path.
+Run all tests:
 
-An application using all of this is at
-`examples/configuration-and-storage.yaml`, with its generated manifest at
-`output/configuration-and-storage-manifest.yaml`.
-
-All four sections are optional. An application that omits them renders exactly
-the same Deployment and Service as before. The Helm-values generator does not
-map them yet; they are supported only by the direct Kubernetes renderer.
-
-Run the focused manifest tests:
-
-```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -p "test_manifests.py" -v
-```
-
-If a Kubernetes cluster is configured, validate the generated manifest without
-creating resources:
-
-```bash
-kubectl apply --dry-run=client -f output/basic-manifest.yaml
+```sh
+python -m unittest discover -s tests -v
 ```
 
 ### Helm status: TBD
@@ -151,6 +88,10 @@ does not change the current Python development workflow.
 ---
 
 # Development Roadmap
+
+The phases below record the original roadmap, including the previous CRD-style
+schema and Helm-first plan. Current behavior and schema are documented above
+and in `docs/ARCHITECTURE.md`; autoscaling and Helm remain future work.
 
 ## Phase 1 — Application Abstraction
 
@@ -477,46 +418,41 @@ Kube-App should provide the missing developer/platform abstraction while leverag
 
 ---
 
-# Initial Repository Structure
+# Repository Structure
 
 ```text
-kube-app/
-├── src/
-│   └── kubeapp/
-│       ├── cli/
-│       ├── models/
-│       ├── parser/
-│       ├── validation/
-│       └── generators/
-│
-├── charts/
-│   └── kube-app/
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── deployment.yaml
-│           ├── service.yaml
-│           ├── ingress.yaml
-│           ├── hpa.yaml
-│           ├── serviceaccount.yaml
-│           └── pdb.yaml
-│
-├── examples/
-│   ├── basic.yaml
-│   └── production.yaml
-│
-├── tests/
-│   ├── test_parser.py
-│   ├── test_validation.py
-│   └── test_generators.py
-│
-├── docs/
-│   ├── architecture.md
-│   └── design-decisions.md
-│
-├── pyproject.toml
-├── README.md
-└── LICENSE
+kubeApp/
+|-- src/
+|   |-- README.md
+|   `-- kubeapp/          # CLI, models, parser, manifests, legacy generator
+|-- charts/kube-app/      # Helm chart; CLI integration deferred
+|-- examples/
+|   |-- README.md
+|   |-- basic/
+|   |   |-- app.yaml
+|   |   `-- rendered.yaml
+|   |-- medium/
+|   |   |-- app.yaml
+|   |   `-- rendered.yaml
+|   `-- advanced/
+|       |-- app.yaml
+|       |-- rendered.yaml
+|       |-- config/catalog.properties
+|       `-- secrets/catalog-db.env
+|-- tests/
+|   |-- README.md
+|   |-- test_cli.py
+|   |-- test_intent.py
+|   |-- test_models.py
+|   |-- test_manifests.py
+|   `-- test_generators.py
+|-- docs/
+|   |-- ARCHITECTURE.md
+|   `-- RENDERING.md
+|-- pyproject.toml
+|-- README.md
+|-- CHANGELOG.md
+`-- CODEX_CONTEXT.md
 ```
 
 ---
@@ -549,8 +485,8 @@ Kubernetes manifests
 A successful first milestone should allow:
 
 ```bash
-kube-app validate examples/basic.yaml
-kube-app render examples/basic.yaml
+kube-app validate examples/basic/app.yaml
+kube-app render examples/basic/app.yaml
 ```
 
 and produce valid Kubernetes resources through the project's Helm chart.

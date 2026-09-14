@@ -1,9 +1,16 @@
 from typing import Any
 
-from kubeapp.models import Application
+from kubeapp.models import LegacyApplication as Application
 
 
 def application_to_helm_values(application: Application) -> dict[str, Any]:
+    if application.spec.image is None:
+        raise ValueError(
+            "Helm values generation supports only the single 'image' form; "
+            "use the Kubernetes renderer for applications that define "
+            "containers"
+        )
+
     repository, tag = _split_image_reference(application.spec.image)
 
     values: dict[str, Any] = {

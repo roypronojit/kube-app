@@ -12,6 +12,10 @@ dist/
 
 # Local Python environments and configuration
 .venv/
+.tools/
 venv/
 .env
 .env.*
+
+.claude
+bootstrap.sh

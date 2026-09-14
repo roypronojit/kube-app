@@ -182,9 +182,7 @@ class MountSpec(StrictModel):
     @classmethod
     def validate_path(cls, value: str) -> str:
         if not value.startswith("/"):
-            raise ValueError(
-                f"path must start with '/', got '{value}'"
-            )
+            raise ValueError(f"path must start with '/', got '{value}'")
 
         return value
 
@@ -200,8 +198,7 @@ class MountSpec(StrictModel):
 
         if not sources:
             raise ValueError(
-                f"mount '{self.name}' must define one of "
-                "config, secret or storage"
+                f"mount '{self.name}' must define one of config, secret or storage"
             )
 
         if len(sources) > 1:
@@ -272,14 +269,11 @@ class StorageSpec(StrictModel):
 
         if match is None:
             raise ValueError(
-                "size must be an amount of storage such as '10Gi', "
-                f"got '{value}'"
+                f"size must be an amount of storage such as '10Gi', got '{value}'"
             )
 
         if float(match.group("amount")) <= 0:
-            raise ValueError(
-                f"size must be greater than zero, got '{value}'"
-            )
+            raise ValueError(f"size must be greater than zero, got '{value}'")
 
         return value
 
@@ -309,9 +303,7 @@ class ScalingSpec(StrictModel):
     @model_validator(mode="after")
     def validate_range(self) -> "ScalingSpec":
         if self.min_replicas > self.max_replicas:
-            raise ValueError(
-                "minReplicas cannot be greater than maxReplicas"
-            )
+            raise ValueError("minReplicas cannot be greater than maxReplicas")
 
         return self
 
@@ -344,9 +336,7 @@ class ApplicationSpec(StrictModel):
     @model_validator(mode="after")
     def validate_containers(self) -> "ApplicationSpec":
         if self.image is None and not self.containers:
-            raise ValueError(
-                "spec must define either image or containers"
-            )
+            raise ValueError("spec must define either image or containers")
 
         if self.image is not None and self.containers:
             raise ValueError(
@@ -356,8 +346,7 @@ class ApplicationSpec(StrictModel):
 
         if self.containers and self.resources is not None:
             raise ValueError(
-                "resources must be set on each containers entry "
-                "instead of on the spec"
+                "resources must be set on each containers entry instead of on the spec"
             )
 
         _reject_duplicates(
@@ -394,8 +383,7 @@ class ApplicationSpec(StrictModel):
         unmounted = sorted(declared - mounted)
         if unmounted:
             raise ValueError(
-                "storage must be mounted by a container: "
-                f"{', '.join(unmounted)}"
+                f"storage must be mounted by a container: {', '.join(unmounted)}"
             )
 
         return self
@@ -429,14 +417,12 @@ class ApplicationSpec(StrictModel):
         if self.service.container is not None:
             if self.image is not None:
                 raise ValueError(
-                    "service cannot name a container unless containers "
-                    "are defined"
+                    "service cannot name a container unless containers are defined"
                 )
 
             if self.service.container not in names:
                 raise ValueError(
-                    "service references unknown container "
-                    f"'{self.service.container}'"
+                    f"service references unknown container '{self.service.container}'"
                 )
 
         elif len(names) > 1:
@@ -448,15 +434,14 @@ class ApplicationSpec(StrictModel):
         return self
 
 
-class Application(StrictModel):
-
+class LegacyApplication(StrictModel):
     api_version: str = Field(alias="apiVersion")
     kind: str
     metadata: ApplicationMetadata
     spec: ApplicationSpec
 
     @model_validator(mode="after")
-    def validate_default_container_name(self) -> "Application":
+    def validate_default_container_name(self) -> "LegacyApplication":
         if self.spec.image is None:
             return self
 
@@ -472,14 +457,10 @@ class Application(StrictModel):
 
     def validate_application(self) -> None:
         if self.api_version != "kubeapp.dev/v1alpha1":
-            raise ValueError(
-                f"Unsupported apiVersion: {self.api_version}"
-            )
+            raise ValueError(f"Unsupported apiVersion: {self.api_version}")
 
         if self.kind != "Application":
-            raise ValueError(
-                f"Unsupported kind: {self.kind}"
-            )
+            raise ValueError(f"Unsupported kind: {self.kind}")
 
 
 def _present_fields(
@@ -489,11 +470,151 @@ def _present_fields(
 
 
 def _reject_duplicates(values: list[str], label: str) -> None:
-    duplicates = sorted(
-        {value for value in values if values.count(value) > 1}
-    )
+    duplicates = sorted({value for value in values if values.count(value) > 1})
 
     if duplicates:
-        raise ValueError(
-            f"duplicate {label}: {', '.join(duplicates)}"
+        raise ValueError(f"duplicate {label}: {', '.join(duplicates)}")
+
+
+class DataResource(StrictModel):
+    name: LocalName
+    data: Optional[dict[ProviderKey, EnvironmentValue]] = None
+    file: Optional[str] = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def single_source(self) -> "DataResource":
+        if (self.data is None) == (self.file is None):
+            raise ValueError("define exactly one of data or file")
+        return self
+
+
+class ResourceConsumption(StrictModel):
+    name: LocalName
+    as_: Literal["environment"] = Field(alias="as")
+
+
+class IntentMount(StrictModel):
+    configuration: Optional[LocalName] = None
+    secret: Optional[LocalName] = None
+    storage: Optional[LocalName] = None
+    path: str = Field(pattern=r"^/")
+
+    @model_validator(mode="after")
+    def single_source(self) -> "IntentMount":
+        if (
+            sum(v is not None for v in (self.configuration, self.secret, self.storage))
+            != 1
+        ):
+            raise ValueError(
+                "mount must define exactly one of configuration, secret or storage"
+            )
+        return self
+
+    @property
+    def source(self) -> tuple[str, str]:
+        return next(
+            (k, getattr(self, k))
+            for k in ("configuration", "secret", "storage")
+            if getattr(self, k) is not None
         )
+
+
+class ResourceRange(StrictModel):
+    min: Optional[EnvironmentValue] = None
+    max: Optional[EnvironmentValue] = None
+
+    @model_validator(mode="after")
+    def valid_range(self) -> "ResourceRange":
+        amounts = []
+        for value in (self.min, self.max):
+            if value is None:
+                amounts.append(None)
+                continue
+            match = re.fullmatch(
+                r"([0-9]+(?:\.[0-9]+)?)(m|Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?", value
+            )
+            if match is None:
+                raise ValueError("invalid resource quantity")
+            suffix = match[2] or ""
+            factor = {
+                "": 1,
+                "m": 0.001,
+                **{
+                    s: 1024**i
+                    for i, s in enumerate(("Ki", "Mi", "Gi", "Ti", "Pi", "Ei"), 1)
+                },
+                **{s: 1000**i for i, s in enumerate(("k", "M", "G", "T", "P", "E"), 1)},
+            }[suffix]
+            amounts.append(float(match[1]) * factor)
+        if all(v is not None for v in amounts) and amounts[0] > amounts[1]:
+            raise ValueError("resource min cannot exceed max")
+        return self
+
+
+class IntentResources(StrictModel):
+    cpu: Optional[ResourceRange] = None
+    memory: Optional[ResourceRange] = None
+
+
+class IntentContainer(StrictModel):
+    name: LocalName
+    image: ImageReference
+    environment: dict[EnvironmentName, EnvironmentValue] = Field(default_factory=dict)
+    configuration: list[ResourceConsumption] = Field(default_factory=list)
+    secrets: list[ResourceConsumption] = Field(default_factory=list)
+    mounts: list[IntentMount] = Field(default_factory=list)
+    resources: Optional[IntentResources] = None
+
+    @model_validator(mode="after")
+    def unique_consumption(self) -> "IntentContainer":
+        _reject_duplicates([m.path for m in self.mounts], "mount path")
+        for references in (self.configuration, self.secrets):
+            _reject_duplicates([r.name for r in references], "resource reference")
+        return self
+
+
+class Application(StrictModel):
+    """Public application intent, independent of any renderer."""
+
+    name: LocalName
+    replicas: int = Field(default=1, ge=0, strict=True)
+    containers: list[IntentContainer] = Field(min_length=1)
+    init: list[IntentContainer] = Field(default_factory=list)
+    configuration: list[DataResource] = Field(default_factory=list)
+    secrets: list[DataResource] = Field(default_factory=list)
+    storage: Optional[StorageSpec] = None
+    service: Optional[ServiceSpec] = None
+    service_account: Optional[ProviderName] = Field(
+        default=None, alias="serviceAccount"
+    )
+
+    @model_validator(mode="after")
+    def validate_references(self) -> "Application":
+        containers = [*self.init, *self.containers]
+        _reject_duplicates([c.name for c in containers], "container name")
+        for resources in (self.configuration, self.secrets):
+            _reject_duplicates([r.name for r in resources], "resource name")
+        declared = {
+            "configuration": {r.name for r in self.configuration},
+            "secret": {r.name for r in self.secrets},
+            "storage": {self.storage.name} if self.storage else set(),
+        }
+        for container in containers:
+            references = [("configuration", r.name) for r in container.configuration]
+            references += [("secret", r.name) for r in container.secrets]
+            references += [m.source for m in container.mounts]
+            for kind, name in references:
+                if name not in declared[kind]:
+                    raise ValueError(
+                        f"container '{container.name}' references undefined {kind} '{name}'"
+                    )
+        if self.service:
+            if self.service.container is None and len(self.containers) > 1:
+                raise ValueError(
+                    "service must name the container that receives traffic"
+                )
+            if self.service.container is not None and self.service.container not in {
+                c.name for c in self.containers
+            }:
+                raise ValueError("service references unknown container")
+        return self
