@@ -67,6 +67,25 @@ class IntentTests(unittest.TestCase):
             ["/etc/catalog", "/etc/catalog/secrets", "/data"],
         )
 
+    def test_all_checked_in_examples_match_renderer(self):
+        with patch.dict(os.environ, {"CATALOG_API_KEY": "example-api-key"}):
+            for name in ("basic", "medium", "advanced"):
+                with self.subTest(example=name):
+                    base = ROOT / "examples" / name
+                    manifests = application_to_kubernetes_manifests(
+                        load_application(base / "app.yaml"), base
+                    )
+                    self.assertEqual(
+                        manifests,
+                        list(yaml.safe_load_all((base / "rendered.yaml").read_text())),
+                    )
+                    pod = next(m for m in manifests if m["kind"] == "Deployment")[
+                        "spec"
+                    ]["template"]["spec"]
+                    self.assertNotIn("securityContext", pod)
+                    for container in pod["containers"] + pod.get("initContainers", []):
+                        self.assertNotIn("securityContext", container)
+
     def test_defaults_and_zero_replicas(self):
         data = {
             "name": "worker",

@@ -55,6 +55,25 @@ spec:
       containers:
       - name: catalog
         image: registry.example.com/catalog:1.4.2
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 1
         ports:
         - name: http
           containerPort: 8080

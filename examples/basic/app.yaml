@@ -4,7 +4,12 @@ replicas: 2
 
 containers:
   - name: hello-world
-    image: nginx:1.27
+    image: nginxinc/nginx-unprivileged:1.27
+    imagePullPolicy: IfNotPresent
+
+    ports:
+      - name: http
+        port: 8080
 
     resources:
       cpu:

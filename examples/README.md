@@ -6,9 +6,9 @@ checked-in Kubernetes output (`rendered.yaml`).
 
 | Example | Input | Generated output | Features |
 | --- | --- | --- | --- |
-| Basic | [app.yaml](basic/app.yaml) | [rendered.yaml](basic/rendered.yaml) | One container, replicas, resources, ClusterIP service |
-| Medium | [app.yaml](medium/app.yaml) | [rendered.yaml](medium/rendered.yaml) | Inline configuration and secrets, environment, mounts, PVC, LoadBalancer service |
-| Advanced | [app.yaml](advanced/app.yaml) | [rendered.yaml](advanced/rendered.yaml) | File inputs, multiple containers, init container, existing service account |
+| Basic | [app.yaml](basic/app.yaml) | [rendered.yaml](basic/rendered.yaml) | One container, ports, image pull policy, resources, ClusterIP service |
+| Medium | [app.yaml](medium/app.yaml) | [rendered.yaml](medium/rendered.yaml) | HTTP health probes, inline configuration and secrets, mounts, PVC, LoadBalancer service |
+| Advanced | [app.yaml](advanced/app.yaml) | [rendered.yaml](advanced/rendered.yaml) | Command/args, file inputs, multiple containers, init container, existing service account |
 
 Run these commands from the repository root with Python 3.11 or later:
 
@@ -46,3 +46,7 @@ deployment.
 After intentional example changes, regenerate the corresponding output and run
 the [tests](../tests/README.md), which compare parsed YAML against these fixtures.
 See [rendering semantics](../docs/RENDERING.md) for file formats and defaults.
+
+
+Version 0.1.1 adds container ports, image pull policy, HTTP health probes,
+and command/args. See [runtime configuration](../docs/RENDERING.md#runtime-configuration-v011).

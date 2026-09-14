@@ -29,6 +29,8 @@ storage:
 containers:
   - name: catalog
     image: registry.example.com/catalog:1.4.2
+    command: ["/app/catalog"]
+    args: ["--port", "8080"]
 
     environment:
       APP_ENV: production
@@ -66,6 +68,24 @@ containers:
         min: 512Mi
         max: 1Gi
 
+    healthChecks:
+      ready:
+        path: /health/ready
+        port: 8080
+        initialDelaySeconds: 5
+        frequencySeconds: 10
+
+      live:
+        path: /health/live
+        port: 8080
+        initialDelaySeconds: 10
+        frequencySeconds: 10
+
+      startup:
+        path: /health/startup
+        port: 8080
+        frequencySeconds: 5
+
   - name: metrics
     image: registry.example.com/catalog-metrics:1.0
 
@@ -83,6 +103,8 @@ containers:
 init:
   - name: database-migration
     image: registry.example.com/catalog-migrations:1.4.2
+    command: ["/app/migrate"]
+    args: ["--database", "catalog"]
 
     secrets:
       - name: catalog-db

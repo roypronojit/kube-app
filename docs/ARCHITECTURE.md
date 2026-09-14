@@ -168,3 +168,7 @@ Model → Validation → Renderer → Tests → CLI
 ```
 
 Make incremental changes and preserve the existing architecture.
+
+
+Version 0.1.1 adds container ports, image pull policy, HTTP health probes,
+and command/args. See [runtime configuration](../docs/RENDERING.md#runtime-configuration-v011).
