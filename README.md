@@ -441,33 +441,15 @@ See the [test guide](tests/README.md) for details.
 
 # Current Architecture
 
-The current rendering path is:
+Kube-App separates the developer-facing application contract from validation and Kubernetes rendering.
 
-```text
-Developer / CI/CD
-       │
-       │ app.yaml
-       ▼
-      CLI
-       │
-       ▼
-     Parser
-       │
-       ▼
-Application Model
-       │
-       ▼
-Kubernetes Renderer
-       │
-       ▼
-Kubernetes Manifests
-```
+![Kube-App Architecture](docs/kubeapp-architecture.png)
 
 The key implementation rule is:
 
 > **The application model must remain independent of the renderer.**
 
-This allows alternative rendering approaches to be introduced later without redefining the developer-facing application contract.
+This separation allows the Kubernetes implementation to evolve and alternative rendering approaches to be introduced later without redefining the developer-facing application contract.
 
 See [Architecture](docs/ARCHITECTURE.md) for the architectural source of truth.
 
