@@ -149,7 +149,19 @@ Deployment / Service / ConfigMap / Secret / PVC / ...
 
 Renderers should be deterministic and testable without a live Kubernetes cluster.
 
-Helm may become another renderer later; it must not define the application model.
+`kubeapp.renderers.Renderer[Output]` defines `render(application, base_dir=".")`.
+Each backend chooses its output type; the contract does not require Kubernetes
+resource dictionaries. Renderers consume validated `Application` objects without
+mutating them and resolve file inputs relative to `base_dir`. Callers serialize
+and write the result.
+
+The CLI uses `KubernetesRenderer`, which delegates to the existing
+`kubeapp.manifests` implementation and returns ordered resource dictionaries.
+Existing manifest functions and legacy application support remain available.
+The model imports no renderer code.
+
+Helm may implement this contract later; no Helm backend is implemented here.
+The legacy Helm-values helper remains compatibility code outside this boundary.
 
 ## Development Rule
 

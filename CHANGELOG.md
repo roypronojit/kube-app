@@ -5,6 +5,17 @@ All notable changes to Kube-App are documented in this file.
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
 
+## Unreleased - [0.2.0]
+
+### Changed
+
+- Added a renderer-independent `Renderer[Output]` contract and a Kubernetes
+  adapter over the existing manifest implementation; the CLI uses the adapter.
+- Preserved the application schema, Kubernetes output, and existing manifest
+  APIs. Helm rendering remains deferred; the legacy values helper is unchanged.
+- Added renderer boundary tests for output parity, file resolution, model
+  immutability, and legacy compatibility.
+
 ## 2026.09.14.2 - [0.1.1]
 
 ### Added

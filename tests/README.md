@@ -29,6 +29,7 @@ No running Kubernetes cluster or Helm installation is needed for this suite.
 | `manifest_tests/test_examples.py` | Advanced example resource wiring and ordering |
 | `manifest_tests/test_runtime.py` | Runtime validation, health probes, ports, and deterministic rendering |
 | `manifest_tests/test_generators.py` | Compatibility tests for the deferred Helm values generator |
+| `manifest_tests/test_renderers.py` | Kubernetes adapter parity, model immutability, base directory handling, and legacy compatibility |
 
 The CLI/input, model, and manifest test packages keep reusable fixtures and builders in
 their respective `helpers.py` modules. Parser tests live with CLI/input tests; intent and runtime tests exercise validation

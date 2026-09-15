@@ -17,6 +17,7 @@ Installation also exposes the equivalent `kube-app` command.
 | `kubeapp/__main__.py` | Entry point for `python -m kubeapp` |
 | `kubeapp/cli.py` | Argument parsing, validate/render commands, output and error handling |
 | `kubeapp/parser.py` | YAML loading and application validation; `ApplicationParseError` |
+| `kubeapp/renderers/` | Generic `Renderer[Output]` protocol and `KubernetesRenderer` adapter used by the CLI |
 | `kubeapp/models/` | Application schema and compatibility exports; domains split across `application`, `container`, `configuration`, and `common` |
 | `kubeapp/manifests/` | Rendering entry point and compatibility exports; `deployment`, `containers`, `resources`, and `common` handle resource assembly |
 | `kubeapp/generators.py` | Compatibility code for the deferred Helm values renderer |

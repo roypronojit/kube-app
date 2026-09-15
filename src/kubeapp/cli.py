@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from kubeapp.manifests import application_to_kubernetes_manifests
+from kubeapp.renderers import KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
 
 
@@ -61,7 +61,7 @@ def main() -> int:
             return 0
 
         try:
-            manifests = application_to_kubernetes_manifests(
+            manifests = KubernetesRenderer().render(
                 application, Path(args.file).resolve().parent
             )
             rendered = yaml.safe_dump_all(manifests, sort_keys=False)
