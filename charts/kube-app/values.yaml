@@ -20,6 +20,9 @@ service:
 
 resources: {}
 
+configuration: []
+envFrom: []
+
 ingress:
   enabled: false
 

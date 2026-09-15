@@ -1,23 +1,25 @@
-"""Helm values for the capabilities demonstrated by the Basic example.
+"""Helm values for Basic capabilities and inline configuration environments.
 
 The kube-app chart consumes these values; Helm execution is left to callers.
 """
 
+import os
+import re
 from pathlib import Path
 from typing import Any
 
-from kubeapp.models import Application
+from kubeapp.models import Application, DataResource
 
 from .base import Renderer
 
 
 class HelmRenderer(Renderer[dict[str, Any]]):
-    """Translate Basic application intent into values, without invoking Helm."""
+    """Translate supported application intent into values, without invoking Helm."""
 
     def render(
         self, application: Application, base_dir: str | Path = "."
     ) -> dict[str, Any]:
-        _validate_basic(application)
+        _validate_supported(application)
         container = application.containers[0]
         repository, tag = _split_image_reference(container.image)
         resources = {}
@@ -55,20 +57,32 @@ class HelmRenderer(Renderer[dict[str, Any]]):
                 "port": application.service.port,
                 "targetPort": container.ports[0].name,
             }
+        if application.configuration:
+            values["configuration"] = [
+                {"name": resource.name, "data": _configuration_data(resource)}
+                for resource in application.configuration
+            ]
+        if container.configuration:
+            values["envFrom"] = [
+                {"configMapRef": {"name": reference.name}}
+                for reference in container.configuration
+            ]
         return values
 
 
-def _validate_basic(application: Application) -> None:
+def _validate_supported(application: Application) -> None:
     unsupported = []
-    for field in ("init", "configuration", "secrets", "storage", "service_account"):
+    for field in ("init", "secrets", "storage", "service_account"):
         if getattr(application, field):
             unsupported.append(field)
     if len(application.containers) != 1:
         unsupported.append("multiple containers")
+    if any(resource.file is not None for resource in application.configuration):
+        unsupported.append("file-based configuration")
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("environment", "configuration", "secrets", "mounts", "health", "command", "args"):
+        for field in ("environment", "secrets", "mounts", "health", "command", "args"):
             if getattr(container, field):
                 unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
@@ -82,9 +96,26 @@ def _validate_basic(application: Application) -> None:
             unsupported.append("service without a declared container port")
     if unsupported:
         raise NotImplementedError(
-            "Helm values support only Basic capabilities; unsupported: "
+            "Helm values support only Basic capabilities and inline configuration "
+            "consumed as environment; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
+
+
+def _configuration_data(resource: DataResource) -> dict[str, str]:
+    """Resolve inline substitutions without changing the validated model."""
+    def substitute(match: re.Match) -> str:
+        variable = match[1]
+        if variable not in os.environ:
+            raise ValueError(
+                f"Missing environment variable '{variable}' for resource '{resource.name}'"
+            )
+        return os.environ[variable]
+
+    return {
+        key: re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", substitute, value)
+        for key, value in (resource.data or {}).items()
+    }
 
 
 def _split_image_reference(image: str) -> tuple[str, str]:

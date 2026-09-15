@@ -8,15 +8,19 @@ Increment `PATCH` when more than one release is made on the same day.
 ## 2026.09.15.1 - [0.2.0]
 
 ### Added
-
+- Helm inline configuration values and ConfigMap templates, with Application-defined
+  names and ordered environment consumption through configMapRef. Inline values
+  retain string conversion and environment-variable substitution. Other unsupported
+  Medium/Advanced capabilities continue to fail explicitly.
+- Focused configuration values and chart tests cover multiple and unconsumed
+  ConfigMaps, empty/string/multiline data, substitution, environment reference
+  ordering, and rejection of configuration files, mounts, and Secrets.
 - Basic Application-to-Helm-values translation owned by `HelmRenderer`, with
   static replicas, image/pull policy, container name/port, resource requests and
   limits, and ClusterIP service targeting. Unsupported capabilities fail explicitly.
 - Focused tests for Basic values, image references, optional resources, application
   immutability, and rejection of unsupported capabilities.
-
 ### Changed
-
 - Added a renderer-independent `Renderer[Output]` contract and a Kubernetes
   adapter over the existing manifest implementation; the CLI uses the adapter.
 - Preserved the application schema, Kubernetes output, and existing manifest
@@ -38,7 +42,7 @@ Increment `PATCH` when more than one release is made on the same day.
   removing release-specific selector constraints; updated pod lookup instructions.
   Comparisons ignore only descriptive Helm resource labels and normalize omitted
   serviceAccountName to Kubernetes' default service account.
-- Added focused chart template tests. All 181 unittest tests pass, including
+- Added focused chart template tests. All 184 unittest tests pass, including
   chart tests; `helm lint charts/kube-app` passes with no failed charts.
 
 ## 2026.09.14.2 - [0.1.1]

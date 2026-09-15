@@ -1,8 +1,10 @@
 ﻿"""Basic Helm values and explicit capability limits."""
 
 import unittest
+import os
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from kubeapp.models import Application
 from kubeapp.parser import load_application
@@ -12,6 +14,56 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_inline_configuration_values_and_environment_references(self):
+        application = Application.model_validate({
+            "name": "catalog",
+            "configuration": [
+                {"name": "catalog-config", "data": {
+                    "APP_ENV": "production", "COUNT": 3, "ENABLED": True,
+                    "MESSAGE": "hello ${CONFIG_TEST_USER}",
+                }},
+                {"name": "unused-config", "data": {}},
+            ],
+            "containers": [{
+                "name": "catalog", "image": "catalog:1.4.2",
+                "configuration": [{"name": "catalog-config", "as": "environment"}],
+            }],
+        })
+        before = application.model_dump()
+        with patch.dict(os.environ, {"CONFIG_TEST_USER": "reader"}):
+            values = HelmRenderer().render(application)
+        self.assertEqual(values["configuration"], [
+            {"name": "catalog-config", "data": {
+                "APP_ENV": "production", "COUNT": "3", "ENABLED": "true",
+                "MESSAGE": "hello reader",
+            }},
+            {"name": "unused-config", "data": {}},
+        ])
+        self.assertEqual(values["envFrom"], [{"configMapRef": {"name": "catalog-config"}}])
+        self.assertEqual(application.model_dump(), before)
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(ValueError, "Missing environment variable 'CONFIG_TEST_USER'"):
+                HelmRenderer().render(application)
+
+    def test_configuration_does_not_enable_files_mounts_or_secrets(self):
+        base = {
+            "name": "catalog",
+            "configuration": [{"name": "config", "data": {}}],
+            "containers": [{"name": "catalog", "image": "catalog:1"}],
+        }
+        for capability in ("file", "mounts", "secrets"):
+            with self.subTest(capability=capability):
+                application = Application.model_validate(base)
+                data = application.model_dump(by_alias=True, exclude_none=True)
+                if capability == "file":
+                    data["configuration"] = [{"name": "config", "file": "missing.env"}]
+                elif capability == "mounts":
+                    data["containers"][0]["mounts"] = [{"configuration": "config", "path": "/etc/app"}]
+                else:
+                    data["secrets"] = [{"name": "private", "data": {"TOKEN": "value"}}]
+                with self.assertRaisesRegex(NotImplementedError, capability):
+                    HelmRenderer().render(Application.model_validate(data))
+
     def test_basic_values_contract_and_immutability(self):
         renderer: Renderer[dict[str, Any]] = HelmRenderer()
         application = load_application(ROOT / "examples/basic/app.yaml")

@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from kubeapp.parser import load_application
+from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
 
@@ -37,6 +38,49 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_configuration_maps_and_environment_consumption(self):
+        application = Application.model_validate({
+            "name": "catalog",
+            "configuration": [
+                {"name": "catalog-config", "data": {
+                    "APP_ENV": "production", "COUNT": 3, "ENABLED": False,
+                    "MULTILINE": "first\nsecond\n", "LITERAL": "{{ .Release.Name }}",
+                }},
+                {"name": "logging-config", "data": {"LOG_LEVEL": "info"}},
+                {"name": "unused-config", "data": {}},
+            ],
+            "containers": [{
+                "name": "catalog", "image": "catalog:1.4.2",
+                "configuration": [
+                    {"name": "logging-config", "as": "environment"},
+                    {"name": "catalog-config", "as": "environment"},
+                ],
+            }],
+        })
+        self.values = HelmRenderer().render(application)
+        documents = self.render_documents()
+        self.assertCountEqual(
+            [doc["kind"] for doc in documents],
+            ["Deployment", "ConfigMap", "ConfigMap", "ConfigMap"],
+        )
+        configmaps = {doc["metadata"]["name"]: doc for doc in documents if doc["kind"] == "ConfigMap"}
+        self.assertEqual(set(configmaps), {"catalog-config", "logging-config", "unused-config"})
+        self.assertEqual(configmaps["catalog-config"]["data"], {
+            "APP_ENV": "production", "COUNT": "3", "ENABLED": "false",
+            "MULTILINE": "first\nsecond\n", "LITERAL": "{{ .Release.Name }}",
+        })
+        self.assertEqual(configmaps["logging-config"]["data"], {"LOG_LEVEL": "info"})
+        self.assertEqual(configmaps["unused-config"]["data"], {})
+        for configmap in configmaps.values():
+            self.assertEqual(configmap["apiVersion"], "v1")
+            self.assertEqual(configmap["metadata"]["labels"]["app.kubernetes.io/name"], "catalog")
+        deployment = next(doc for doc in documents if doc["kind"] == "Deployment")
+        container = deployment["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["envFrom"], [
+            {"configMapRef": {"name": "logging-config"}},
+            {"configMapRef": {"name": "catalog-config"}},
+        ])
 
     def test_basic_end_to_end_produces_only_deployment_and_service(self):
         documents = self.render_documents()
