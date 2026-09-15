@@ -160,8 +160,13 @@ The CLI uses `KubernetesRenderer`, which delegates to the existing
 Existing manifest functions and legacy application support remain available.
 The model imports no renderer code.
 
-Helm may implement this contract later; no Helm backend is implemented here.
-The legacy Helm-values helper remains compatibility code outside this boundary.
+`HelmRenderer` implements `Renderer[dict[str, Any]]` and generates values for
+Basic capabilities only. Unsupported capabilities fail explicitly. Helm template
+execution and CLI selection remain deferred. The legacy chart still needs to
+consume `replicaCount`, `containerName`, `ports`, and `service.targetPort` before
+it can preserve Basic intent; its Service template also needs to honor
+`service.enabled`. The legacy Helm-values helper remains compatibility code,
+sharing image-reference splitting with the new renderer.
 
 ## Development Rule
 

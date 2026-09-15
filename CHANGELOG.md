@@ -5,14 +5,24 @@ All notable changes to Kube-App are documented in this file.
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
 
-## Unreleased - [0.2.0]
+## 2026.09.15.1 - [0.2.0]
+
+### Added
+
+- Basic Application-to-Helm-values translation owned by `HelmRenderer`, with
+  static replicas, image/pull policy, container name/port, resource requests and
+  limits, and ClusterIP service targeting. Unsupported capabilities fail explicitly.
+- Focused tests for Basic values, image references, optional resources, application
+  immutability, and rejection of unsupported capabilities. All 177 unittest tests pass.
 
 ### Changed
 
 - Added a renderer-independent `Renderer[Output]` contract and a Kubernetes
   adapter over the existing manifest implementation; the CLI uses the adapter.
 - Preserved the application schema, Kubernetes output, and existing manifest
-  APIs. Helm rendering remains deferred; the legacy values helper is unchanged.
+  APIs. Helm template execution, chart alignment, and CLI renderer selection remain
+  deferred. The legacy values helper reuses image splitting from `HelmRenderer`
+  and preserves its existing output.
 - Added renderer boundary tests for output parity, file resolution, model
   immutability, and legacy compatibility.
 
