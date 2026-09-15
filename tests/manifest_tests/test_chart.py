@@ -17,6 +17,7 @@ from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
 from .helpers import health_application, inline_secret_application, mounted_application
+from .test_helm_files import file_application
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,6 +44,24 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_file_resources_render_to_configmap_and_secret(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base / "inputs").mkdir()
+            (base / "inputs/config.properties").write_text("MODE=${HELM_FILE_VALUE}\n", encoding="utf-8")
+            (base / "inputs/secret.env").write_text("TOKEN=${HELM_FILE_VALUE}\n", encoding="utf-8")
+            application = file_application(base)
+            with patch.dict(os.environ, {"HELM_FILE_VALUE": "demonstration"}):
+                self.values = HelmRenderer().render(application, base)
+        # Helm receives resolved data and does not need access to the source files.
+        documents = self.render_chart()
+        self.assertEqual(set(documents), {"Deployment", "ConfigMap", "Secret"})
+        self.assertEqual(documents["ConfigMap"]["metadata"]["name"], "settings")
+        self.assertEqual(documents["ConfigMap"]["data"], {"MODE": "demonstration"})
+        self.assertEqual(documents["Secret"]["metadata"]["name"], "credentials")
+        self.assertEqual(documents["Secret"]["type"], "Opaque")
+        self.assertEqual(documents["Secret"]["stringData"], {"TOKEN": "demonstration"})
 
     def test_actual_medium_end_to_end_and_semantic_equivalence(self):
         source = ROOT / "examples/medium/app.yaml"

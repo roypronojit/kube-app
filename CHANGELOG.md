@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.13 - [0.2.0]
+
+- Added configuration/Secret file loading in HelmRenderer, resolving paths against
+  the existing base_dir render context. UTF-8 key=value parsing, comments,
+  whitespace, duplicate/key validation, and substitution match KubernetesRenderer.
+- Preserved resource names, inline data behavior, chart values, and Application
+  immutability. Helm consumes resolved data without accessing the original files.
+- Added relative-path, substitution, missing/invalid file, immutability, and chart
+  tests. Validation: 200 unittest tests passed; Helm lint passed.
+- The unchanged Advanced example remains blocked by multiple/init containers,
+  serviceAccount, command/args, explicit service container selection, and a Service
+  without a declared container port. No full Advanced equivalence was performed.
+
 ## 2026.09.15.12 - [0.2.0]
 
 - Completed rendering of the unchanged Medium example by adding literal env

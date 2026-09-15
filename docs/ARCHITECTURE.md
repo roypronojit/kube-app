@@ -176,7 +176,11 @@ Only declared probes render; numeric/named ports and model timing defaults are p
 Literal environment entries render as ordered `env` values. ClusterIP/LoadBalancer
 Services preserve explicit numeric or named targetPort values. The actual Medium
 example is tested end-to-end and compared semantically with KubernetesRenderer.
-File-based configuration/Secrets and other unsupported Medium/Advanced capabilities
+Configuration and Secret files use UTF-8 key=value parsing and environment
+substitution at render time, matching KubernetesRenderer. Pass the application
+YAML's parent directory as `base_dir`; the parser does not attach paths to the model.
+Resolved data uses the same values/chart structure as inline resources.
+Other unsupported Advanced capabilities
 remain unsupported and fail explicitly. Helm template
 execution in the application and CLI selection remain deferred. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors

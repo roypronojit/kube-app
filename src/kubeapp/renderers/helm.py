@@ -60,7 +60,7 @@ class HelmRenderer(Renderer[dict[str, Any]]):
         for field in ("configuration", "secrets"):
             if getattr(application, field):
                 values[field] = [
-                    {"name": resource.name, "data": _inline_resource_data(resource)}
+                    {"name": resource.name, "data": _resource_data(resource, Path(base_dir))}
                     for resource in getattr(application, field)
                 ]
         env_from = [
@@ -124,10 +124,6 @@ def _validate_supported(application: Application) -> None:
             unsupported.append(field)
     if len(application.containers) != 1:
         unsupported.append("multiple containers")
-    if any(resource.file is not None for resource in application.configuration):
-        unsupported.append("file-based configuration")
-    if any(resource.file is not None for resource in application.secrets):
-        unsupported.append("file-based secrets")
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
@@ -150,8 +146,27 @@ def _validate_supported(application: Application) -> None:
         )
 
 
-def _inline_resource_data(resource: DataResource) -> dict[str, str]:
-    """Resolve inline substitutions without changing the validated model."""
+def _resource_data(resource: DataResource, base_dir: Path) -> dict[str, str]:
+    """Resolve UTF-8 key=value files and substitutions at render time."""
+    data = dict(resource.data or {})
+    if resource.file is not None:
+        path = base_dir / resource.file
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise ValueError(f"Cannot read resource file '{resource.file}'") from exc
+        for number, line in enumerate(content.splitlines(), 1):
+            line = line.strip()
+            if not line or line.startswith(("#", "!")):
+                continue
+            key, separator, value = line.partition("=")
+            key = key.strip()
+            if not separator or not re.fullmatch(r"[-._a-zA-Z0-9]+", key) or key in data:
+                raise ValueError(
+                    f"Invalid or duplicate entry in '{resource.file}' at line {number}"
+                )
+            data[key] = value.strip()
+
     def substitute(match: re.Match) -> str:
         variable = match[1]
         if variable not in os.environ:
@@ -162,7 +177,7 @@ def _inline_resource_data(resource: DataResource) -> dict[str, str]:
 
     return {
         key: re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", substitute, value)
-        for key, value in (resource.data or {}).items()
+        for key, value in data.items()
     }
 
 

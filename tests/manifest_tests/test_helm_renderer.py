@@ -181,7 +181,7 @@ class HelmRendererTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing environment variable 'CONFIG_TEST_USER'"):
                 HelmRenderer().render(application)
 
-    def test_inline_resources_do_not_enable_files(self):
+    def test_missing_resource_files_fail_intentionally(self):
         base = {
             "name": "catalog",
             "configuration": [{"name": "config", "data": {}}],
@@ -195,7 +195,7 @@ class HelmRendererTests(unittest.TestCase):
                     data["configuration"] = [{"name": "config", "file": "missing.env"}]
                 else:
                     data["secrets"] = [{"name": "private", "file": "missing-secret.env"}]
-                with self.assertRaisesRegex(NotImplementedError, capability):
+                with self.assertRaisesRegex(ValueError, "Cannot read resource file"):
                     HelmRenderer().render(Application.model_validate(data))
 
     def test_basic_values_contract_and_immutability(self):
