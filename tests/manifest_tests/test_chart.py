@@ -23,7 +23,7 @@ class BasicChartTests(unittest.TestCase):
             load_application(ROOT / "examples/basic/app.yaml")
         )
 
-    def render_chart(self):
+    def render_documents(self):
         with tempfile.TemporaryDirectory() as directory:
             values_file = Path(directory) / "values.yaml"
             values_file.write_text(yaml.safe_dump(self.values), encoding="utf-8")
@@ -33,7 +33,24 @@ class BasicChartTests(unittest.TestCase):
                 capture_output=True, text=True, timeout=30,
             )
         self.assertEqual(result.returncode, 0, result.stderr)
-        return {doc["kind"]: doc for doc in yaml.safe_load_all(result.stdout) if doc}
+        return [doc for doc in yaml.safe_load_all(result.stdout) if doc is not None]
+
+    def render_chart(self):
+        return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_basic_end_to_end_produces_only_deployment_and_service(self):
+        documents = self.render_documents()
+        self.assertCountEqual(
+            [doc["kind"] for doc in documents], ["Deployment", "Service"]
+        )
+        for document in documents:
+            with self.subTest(kind=document["kind"]):
+                self.assertEqual(
+                    document["apiVersion"],
+                    "apps/v1" if document["kind"] == "Deployment" else "v1",
+                )
+                self.assertTrue(document["metadata"]["name"])
+                self.assertIsInstance(document["spec"], dict)
 
     def test_basic_values_are_consumed(self):
         for port_name in ("http", "web"):

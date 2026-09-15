@@ -28,8 +28,11 @@ Increment `PATCH` when more than one release is made on the same day.
 - Aligned the chart with Basic Helm values: static replicaCount, containerName,
   declared ports, resources, service targeting, and service account creation.
   Removed legacy scaling defaults and Service-port-derived container ports;
-  Service resources, connection hooks, and notes now honor service.enabled.
-- Added focused chart template tests. All 179 unittest tests pass, including
+  Service resources and notes now honor service.enabled.
+- Added Basic parser-to-values-to-Helm integration coverage for successful
+  templating, YAML parsing, and exactly one Deployment and one Service.
+  Removed the connection-test hook that emitted an unexpected Pod.
+- Added focused chart template tests. All 180 unittest tests pass, including
   chart tests; `helm lint charts/kube-app` passes with no failed charts.
 
 ## 2026.09.14.2 - [0.1.1]
