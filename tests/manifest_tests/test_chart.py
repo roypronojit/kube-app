@@ -47,6 +47,25 @@ class BasicChartTests(unittest.TestCase):
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
 
+    def test_service_targets_explicit_application_container(self):
+        for target in (None, "metrics", 9090):
+            with self.subTest(target=target):
+                data = multiple_container_application().model_dump(by_alias=True)
+                data["service"] = {"port": 80, "container": "metrics", "targetPort": target}
+                application = Application.model_validate(data)
+                before = application.model_dump()
+                self.values = HelmRenderer().render(application)
+                documents = self.render_documents()
+                service = next(doc for doc in documents if doc["kind"] == "Service")
+                expected = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Service")
+                self.assertEqual(service["spec"], expected["spec"])
+                self.assertEqual(service["spec"]["ports"][0]["targetPort"], target or "metrics")
+                pod = next(doc for doc in documents if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                self.assertEqual(pod["containers"][0]["ports"][0]["containerPort"], 8080)
+                self.assertEqual(pod["containers"][1]["ports"][0]["containerPort"], 9090)
+                self.assertNotIn("ports", pod["containers"][2])
+                self.assertEqual(application.model_dump(), before)
+
     def test_application_service_account_is_referenced_not_created(self):
         for name in (None, "catalog.identity", "true"):
             with self.subTest(name=name):

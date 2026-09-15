@@ -49,7 +49,7 @@ class HelmRenderer(Renderer[dict[str, Any]]):
                 "enabled": True,
                 "type": application.service.type,
                 "port": application.service.port,
-                "targetPort": application.service.target_port or application.containers[0].ports[0].name,
+                "targetPort": application.service.target_port or _service_container(application).ports[0].name,
             }
         for field in ("configuration", "secrets"):
             if getattr(application, field):
@@ -153,6 +153,12 @@ def _container_values(
     return values
 
 
+def _service_container(application: Application) -> IntentContainer:
+    """Resolve the already validated application-container reference."""
+    name = application.service.container or application.containers[0].name
+    return next(container for container in application.containers if container.name == name)
+
+
 def _validate_supported(application: Application) -> None:
     unsupported = []
     for container in application.init:
@@ -166,9 +172,7 @@ def _validate_supported(application: Application) -> None:
     if application.service:
         if application.service.type not in ("ClusterIP", "LoadBalancer"):
             unsupported.append("service.type other than ClusterIP/LoadBalancer")
-        if application.service.container is not None:
-            unsupported.append("explicit service container")
-        if not application.containers[0].ports:
+        if not _service_container(application).ports:
             unsupported.append("service without a declared container port")
     if unsupported:
         raise NotImplementedError(

@@ -196,7 +196,9 @@ Multiple application containers render in declaration order through a `container
 values list, each with independent supported settings. Single-container values keep
 their existing top-level fields. Both shapes use one container translator and one
 chart loop. Resources remain application-scoped and volumes are deduplicated across
-containers. Explicit Service container selection remains deferred.
+containers. Explicit Service container selection resolves the validated application
+container reference and uses its declared port; targets without declared ports
+remain unsupported. Omitted selection preserves existing single-container behavior.
 
 Init containers use a separate ordered `initContainers` values list and chart block.
 They reuse supported container resource translation and allocate shared volumes

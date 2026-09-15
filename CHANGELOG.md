@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.3 - [0.2.0]
+
+- Step 18: added explicit service.container resolution using the validated reference.
+  Default targetPort and declared-port checks now use the selected application
+  container; explicit named/numeric targets and absent-selection behavior are preserved.
+- Added values/chart tests for non-first container selection, independent ports,
+  named/numeric targets, immutability, and rejection of selected containers without ports.
+- Validation: 211 unittest tests passed, including Basic/Medium equivalence;
+  Helm lint passed. No CLI changes or full Advanced equivalence work.
+- The unchanged Advanced example remains blocked only by Service targeting
+  without a declared container port; fallback targeting remains unsupported.
+
 ## 2026.09.16.2 - [0.2.0]
 
 - Step 17: added Application serviceAccount references through Helm values with

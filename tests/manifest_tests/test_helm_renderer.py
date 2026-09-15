@@ -92,11 +92,32 @@ class HelmRendererTests(unittest.TestCase):
         self.assertEqual(application.model_dump(), before)
         self.assertEqual(HelmRenderer().render(application), values)
 
-    def test_multiple_containers_do_not_enable_service_selection(self):
-        data = multiple_container_application().model_dump(by_alias=True)
-        data["service"] = {"port": 80, "container": "catalog"}
-        with self.assertRaisesRegex(NotImplementedError, "explicit service container"):
-            HelmRenderer().render(Application.model_validate(data))
+    def test_service_selection_uses_selected_container_ports(self):
+        for target in (None, "metrics", 9090):
+            with self.subTest(target=target):
+                data = multiple_container_application().model_dump(by_alias=True)
+                data["service"] = {"port": 80, "container": "metrics", "targetPort": target}
+                application = Application.model_validate(data)
+                before = application.model_dump()
+                values = HelmRenderer().render(application)
+                self.assertEqual(values["service"]["targetPort"], target or "metrics")
+                self.assertEqual(application.model_dump(), before)
+
+    def test_service_selection_checks_selected_container_not_first(self):
+        for first_has_ports in (False, True):
+            for selected in ("metrics", "worker"):
+                with self.subTest(first_has_ports=first_has_ports, selected=selected):
+                    data = multiple_container_application().model_dump(by_alias=True)
+                    if not first_has_ports:
+                        data["containers"][0]["ports"] = []
+                        data["containers"][0]["health"] = None
+                    data["service"] = {"port": 80, "container": selected}
+                    application = Application.model_validate(data)
+                    if selected == "worker":
+                        with self.assertRaisesRegex(NotImplementedError, "without a declared container port"):
+                            HelmRenderer().render(application)
+                    else:
+                        self.assertEqual(HelmRenderer().render(application)["service"]["targetPort"], "metrics")
 
     def test_actual_medium_values_include_environment_and_service(self):
         application = load_application(ROOT / "examples/medium/app.yaml")
