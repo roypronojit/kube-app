@@ -11,6 +11,27 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def mounted_application() -> IntentApplication:
+    """Same resource name across kinds, repeated sources, and distinct paths."""
+    return IntentApplication.model_validate({
+        "name": "catalog",
+        "configuration": [{"name": "data", "data": {"MODE": "test"}}],
+        "secrets": [{"name": "data", "data": {"TOKEN": "example"}}],
+        "storage": {"name": "data", "size": "10Gi"},
+        "containers": [{
+            "name": "catalog", "image": "catalog:1",
+            "mounts": [
+                {"secret": "data", "path": "/etc/secrets"},
+                {"storage": "data", "path": "/data"},
+                {"configuration": "data", "path": "/etc/config"},
+                {"configuration": "data", "path": "/etc/config-copy"},
+                {"secret": "data", "path": "/etc/secrets-copy"},
+                {"storage": "data", "path": "/data-copy"},
+            ],
+        }],
+    })
+
+
 def inline_secret_application() -> IntentApplication:
     """Focused configuration/Secret input with demonstration data only."""
     return IntentApplication.model_validate({

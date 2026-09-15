@@ -15,7 +15,7 @@ from kubeapp.parser import load_application
 from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
-from .helpers import inline_secret_application
+from .helpers import inline_secret_application, mounted_application
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +42,28 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_resource_mounts_match_kubernetes_mount_semantics(self):
+        application = mounted_application()
+        self.values = HelmRenderer().render(application)
+        documents = self.render_documents()
+        self.assertCountEqual(
+            [doc["kind"] for doc in documents],
+            ["Deployment", "ConfigMap", "Secret", "PersistentVolumeClaim"],
+        )
+        resources = {doc["kind"]: doc for doc in documents}
+        pod = resources["Deployment"]["spec"]["template"]["spec"]
+        reference = next(
+            doc for doc in KubernetesRenderer().render(application)
+            if doc["kind"] == "Deployment"
+        )["spec"]["template"]["spec"]
+        self.assertEqual(pod["volumes"], reference["volumes"])
+        mounts = pod["containers"][0]["volumeMounts"]
+        self.assertEqual(mounts, reference["containers"][0]["volumeMounts"])
+        self.assertEqual(pod["volumes"][0]["secret"]["secretName"], resources["Secret"]["metadata"]["name"])
+        self.assertEqual(pod["volumes"][1]["persistentVolumeClaim"]["claimName"], resources["PersistentVolumeClaim"]["metadata"]["name"])
+        self.assertEqual(pod["volumes"][2]["configMap"]["name"], resources["ConfigMap"]["metadata"]["name"])
+        self.assertEqual([mount.get("readOnly", False) for mount in mounts], [True, False, True, True, True, False])
 
     def test_storage_pvc_matches_kubernetes_semantics(self):
         for options in ({}, {"storageClass": "fast", "accessModes": ["ReadWriteMany", "ReadOnlyMany"]}):

@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.10 - [0.2.0]
+
+- Added Helm volumes and volumeMounts for configuration, Secrets, and storage;
+  the Deployment template renders them only when mounts are declared.
+- Preserved Application-defined resource references, `<application>-<storage>`
+  PVC names, mount paths and order, read-only ConfigMap/Secret mounts, and default
+  read-write PVC mounts. Repeated sources share volumes without cross-kind collisions.
+- Added focused values and chart mount tests, including KubernetesRenderer mount
+  semantics and resource references. Basic, ConfigMap, Secret, and PVC regressions pass.
+- File-based configuration/Secrets, probes, and other unsupported capabilities
+  remain deferred. The Application schema, KubernetesRenderer, and CLI are unchanged.
+- Validation: 191 unittest tests passed; Helm lint passed.
+
 ## 2026.09.15.9 - [0.2.0]
 
 - Added Helm storage values and a PVC template preserving storage name, size,

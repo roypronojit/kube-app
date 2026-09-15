@@ -10,7 +10,7 @@ from kubeapp.models import Application
 from kubeapp.parser import load_application
 from kubeapp.renderers import HelmRenderer, Renderer
 
-from .helpers import inline_secret_application
+from .helpers import inline_secret_application, mounted_application
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -33,16 +33,25 @@ class HelmRendererTests(unittest.TestCase):
         basic = load_application(ROOT / "examples/basic/app.yaml")
         self.assertNotIn("storage", HelmRenderer().render(basic))
 
-    def test_storage_mounts_remain_unsupported(self):
-        application = Application.model_validate({
-            "name": "catalog", "storage": {"name": "data", "size": "10Gi"},
-            "containers": [{
-                "name": "catalog", "image": "catalog:1",
-                "mounts": [{"storage": "data", "path": "/data"}],
-            }],
-        })
-        with self.assertRaisesRegex(NotImplementedError, "mounts"):
-            HelmRenderer().render(application)
+    def test_mount_values_preserve_sources_order_paths_and_read_only(self):
+        application = mounted_application()
+        before = application.model_dump()
+        values = HelmRenderer().render(application)
+        self.assertEqual(values["volumes"], [
+            {"name": "volume-0", "secret": {"secretName": "data"}},
+            {"name": "volume-1", "persistentVolumeClaim": {"claimName": "catalog-data"}},
+            {"name": "volume-2", "configMap": {"name": "data"}},
+        ])
+        self.assertEqual(values["volumeMounts"], [
+            {"name": "volume-0", "mountPath": "/etc/secrets", "readOnly": True},
+            {"name": "volume-1", "mountPath": "/data"},
+            {"name": "volume-2", "mountPath": "/etc/config", "readOnly": True},
+            {"name": "volume-2", "mountPath": "/etc/config-copy", "readOnly": True},
+            {"name": "volume-0", "mountPath": "/etc/secrets-copy", "readOnly": True},
+            {"name": "volume-1", "mountPath": "/data-copy"},
+        ])
+        self.assertEqual(HelmRenderer().render(application), values)
+        self.assertEqual(application.model_dump(), before)
 
     def test_inline_secret_values_substitution_and_consumption_order(self):
         application = inline_secret_application()
@@ -115,20 +124,18 @@ class HelmRendererTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing environment variable 'CONFIG_TEST_USER'"):
                 HelmRenderer().render(application)
 
-    def test_inline_resources_do_not_enable_files_or_mounts(self):
+    def test_inline_resources_do_not_enable_files(self):
         base = {
             "name": "catalog",
             "configuration": [{"name": "config", "data": {}}],
             "containers": [{"name": "catalog", "image": "catalog:1"}],
         }
-        for capability in ("file", "mounts", "secrets"):
+        for capability in ("file", "secrets"):
             with self.subTest(capability=capability):
                 application = Application.model_validate(base)
                 data = application.model_dump(by_alias=True, exclude_none=True)
                 if capability == "file":
                     data["configuration"] = [{"name": "config", "file": "missing.env"}]
-                elif capability == "mounts":
-                    data["containers"][0]["mounts"] = [{"configuration": "config", "path": "/etc/app"}]
                 else:
                     data["secrets"] = [{"name": "private", "file": "missing-secret.env"}]
                 with self.assertRaisesRegex(NotImplementedError, capability):

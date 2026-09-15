@@ -77,6 +77,30 @@ class HelmRenderer(Renderer[dict[str, Any]]):
             values["storage"] = application.storage.model_dump(
                 by_alias=True, exclude_none=True
             )
+        if container.mounts:
+            volumes: dict[tuple[str, str], dict[str, Any]] = {}
+            volume_mounts = []
+            for mount in container.mounts:
+                kind, name = mount.source
+                if mount.source not in volumes:
+                    volume: dict[str, Any] = {"name": f"volume-{len(volumes)}"}
+                    if kind == "configuration":
+                        volume["configMap"] = {"name": name}
+                    elif kind == "secret":
+                        volume["secret"] = {"secretName": name}
+                    else:
+                        volume["persistentVolumeClaim"] = {
+                            "claimName": f"{application.name}-{name}"
+                        }
+                    volumes[mount.source] = volume
+                rendered_mount = {
+                    "name": volumes[mount.source]["name"], "mountPath": mount.path,
+                }
+                if kind != "storage":
+                    rendered_mount["readOnly"] = True
+                volume_mounts.append(rendered_mount)
+            values["volumes"] = list(volumes.values())
+            values["volumeMounts"] = volume_mounts
         return values
 
 
@@ -94,7 +118,7 @@ def _validate_supported(application: Application) -> None:
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("environment", "mounts", "health", "command", "args"):
+        for field in ("environment", "health", "command", "args"):
             if getattr(container, field):
                 unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
@@ -109,7 +133,7 @@ def _validate_supported(application: Application) -> None:
     if unsupported:
         raise NotImplementedError(
             "Helm values support only Basic capabilities and inline configuration/secrets "
-            "consumed as environment, plus storage claims; unsupported: "
+            "consumed as environment, plus storage claims and resource mounts; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
 

@@ -166,7 +166,12 @@ environment variables. `configuration` and `secrets` values preserve declaration
 order and Application-defined names. Secrets render as Opaque with `stringData`,
 using the same inline substitution as configuration. `envFrom` places configuration
 references before Secret references, preserving consumption order within each list.
-File-based configuration/Secrets, storage, mounts, health probes, and other Medium/Advanced capabilities
+Storage values create PVCs named `<application>-<storage>`, preserving size,
+optional storageClass, and accessModes. Mounts produce `volumes` and `volumeMounts`:
+configuration/Secret mounts are read-only, while storage mounts use the PVC with
+default read-write access. Mount order is preserved, and repeated sources share
+one volume identified by resource kind and name.
+File-based configuration/Secrets, health probes, and other Medium/Advanced capabilities
 remain unsupported and fail explicitly. Helm template
 execution in the application and CLI selection remain deferred. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors

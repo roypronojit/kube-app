@@ -24,6 +24,8 @@ configuration: []
 secrets: []
 envFrom: []
 storage: null
+volumes: []
+volumeMounts: []
 
 ingress:
   enabled: false
