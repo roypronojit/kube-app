@@ -162,10 +162,10 @@ The model imports no renderer code.
 
 `HelmRenderer` implements `Renderer[dict[str, Any]]` and generates values for
 Basic capabilities only. Unsupported capabilities fail explicitly. Helm template
-execution and CLI selection remain deferred. The legacy chart still needs to
-consume `replicaCount`, `containerName`, `ports`, and `service.targetPort` before
-it can preserve Basic intent; its Service template also needs to honor
-`service.enabled`. The legacy Helm-values helper remains compatibility code,
+execution in the application and CLI selection remain deferred. The chart consumes
+`replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors
+`service.enabled` and `serviceAccount.create` for Basic values.
+The legacy Helm-values helper remains compatibility code,
 sharing image-reference splitting with the new renderer.
 
 ## Development Rule

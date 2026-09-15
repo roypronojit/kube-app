@@ -1,7 +1,6 @@
 """Helm values for the capabilities demonstrated by the Basic example.
 
-Chart template integration is deferred. replicaCount, containerName, ports,
-and service.targetPort preserve intent not yet consumed by the legacy chart.
+The kube-app chart consumes these values; Helm execution is left to callers.
 """
 
 from pathlib import Path

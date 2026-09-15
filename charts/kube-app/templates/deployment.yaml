@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "kube-app.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.scaling.minReplicas }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "kube-app.selectorLabels" . | nindent 6 }}
@@ -16,12 +16,12 @@ spec:
     spec:
       serviceAccountName: {{ include "kube-app.serviceAccountName" . }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ .Values.containerName }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.ports }}
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

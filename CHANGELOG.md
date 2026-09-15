@@ -13,18 +13,24 @@ Increment `PATCH` when more than one release is made on the same day.
   static replicas, image/pull policy, container name/port, resource requests and
   limits, and ClusterIP service targeting. Unsupported capabilities fail explicitly.
 - Focused tests for Basic values, image references, optional resources, application
-  immutability, and rejection of unsupported capabilities. All 177 unittest tests pass.
+  immutability, and rejection of unsupported capabilities.
 
 ### Changed
 
 - Added a renderer-independent `Renderer[Output]` contract and a Kubernetes
   adapter over the existing manifest implementation; the CLI uses the adapter.
 - Preserved the application schema, Kubernetes output, and existing manifest
-  APIs. Helm template execution, chart alignment, and CLI renderer selection remain
+  APIs. Application Helm execution and CLI renderer selection remain
   deferred. The legacy values helper reuses image splitting from `HelmRenderer`
   and preserves its existing output.
 - Added renderer boundary tests for output parity, file resolution, model
   immutability, and legacy compatibility.
+- Aligned the chart with Basic Helm values: static replicaCount, containerName,
+  declared ports, resources, service targeting, and service account creation.
+  Removed legacy scaling defaults and Service-port-derived container ports;
+  Service resources, connection hooks, and notes now honor service.enabled.
+- Added focused chart template tests. All 179 unittest tests pass, including
+  chart tests; `helm lint charts/kube-app` passes with no failed charts.
 
 ## 2026.09.14.2 - [0.1.1]
 

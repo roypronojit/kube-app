@@ -14,10 +14,12 @@ Run one module with a discovery pattern:
 python -m unittest discover -s tests -p "test_intent.py" -v
 ```
 
-No running Kubernetes cluster or Helm installation is needed for this suite.
+No running Kubernetes cluster is needed. Chart template tests use Helm when it
+is on PATH and are skipped otherwise; all other tests run without Helm.
 
 | Module | Coverage |
 | --- | --- |
+| `manifest_tests/test_chart.py` | Basic chart values consumption, optional Service/ports, and service account creation (requires Helm) |
 | `cli_tests/test_commands.py` | Validation/render commands, exit codes, output files, and failed-render diagnostics |
 | `cli_tests/test_parser.py` | YAML and filesystem input errors through the parser API |
 | `manifest_tests/test_intent.py` | Flat schema, defaults, resource wiring, file inputs, substitution, and example snapshots |
