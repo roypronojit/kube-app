@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.2 - [0.2.0]
+
+- Step 17: added Application serviceAccount references through Helm values with
+  create=false. Deployment serviceAccountName preserves the exact declared name;
+  quoting prevents YAML scalar coercion. No ServiceAccount resource is created.
+- Preserved the default service account behavior when absent. Added values/chart
+  tests for exact names, omission, multiple/init containers, and model immutability.
+- Validation: 209 unittest tests passed, including Basic/Medium equivalence;
+  Helm lint passed. No CLI changes or full Advanced equivalence work.
+- Advanced remains blocked by explicit service.container selection and Service
+  targeting without a declared container port.
+
 ## 2026.09.16.1 - [0.2.0]
 
 - Step 16: added command/args translation and Deployment rendering for application

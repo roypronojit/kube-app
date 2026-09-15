@@ -14,7 +14,7 @@ spec:
       labels:
         {{- include "kube-app.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "kube-app.serviceAccountName" . }}
+      serviceAccountName: {{ include "kube-app.serviceAccountName" . | quote }}
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}

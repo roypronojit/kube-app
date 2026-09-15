@@ -47,6 +47,26 @@ class BasicChartTests(unittest.TestCase):
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
 
+    def test_application_service_account_is_referenced_not_created(self):
+        for name in (None, "catalog.identity", "true"):
+            with self.subTest(name=name):
+                data = init_container_application().model_dump(by_alias=True)
+                data["serviceAccount"] = name
+                application = Application.model_validate(data)
+                before = application.model_dump()
+                self.values = HelmRenderer().render(application)
+                documents = self.render_documents()
+                self.assertCountEqual([doc["kind"] for doc in documents], ["Deployment", "ConfigMap", "Secret", "PersistentVolumeClaim"])
+                pod = next(doc for doc in documents if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                reference = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                self.assertEqual(pod["serviceAccountName"], name if name is not None else "default")
+                self.assertEqual(pod["serviceAccountName"], reference.get("serviceAccountName", "default"))
+                self.assertEqual(len(pod["initContainers"]), 2)
+                self.assertEqual(len(pod["containers"]), 3)
+                for container in [*pod["initContainers"], *pod["containers"]]:
+                    self.assertNotIn("serviceAccountName", container)
+                self.assertEqual(application.model_dump(), before)
+
     def test_command_args_for_application_and_init_containers(self):
         application = process_application()
         self.values = HelmRenderer().render(application)

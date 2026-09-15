@@ -27,6 +27,8 @@ class HelmRenderer(Renderer[dict[str, Any]]):
             "serviceAccount": {"create": False},
         }
         volumes: dict[tuple[str, str], dict[str, Any]] = {}
+        if application.service_account is not None:
+            values["serviceAccount"]["name"] = application.service_account
         if application.init:
             values["initContainers"] = [
                 _init_container_values(application, container, volumes)
@@ -153,9 +155,6 @@ def _container_values(
 
 def _validate_supported(application: Application) -> None:
     unsupported = []
-    for field in ("service_account",):
-        if getattr(application, field):
-            unsupported.append(field)
     for container in application.init:
         if container.ports:
             unsupported.append("init container ports")

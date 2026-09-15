@@ -18,6 +18,20 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_service_account_values_exact_name_and_immutability(self):
+        for name in (None, "catalog.identity", "true"):
+            with self.subTest(name=name):
+                data = init_container_application().model_dump(by_alias=True)
+                data["serviceAccount"] = name
+                application = Application.model_validate(data)
+                before = application.model_dump()
+                values = HelmRenderer().render(application)
+                expected = {"create": False}
+                if name is not None:
+                    expected["name"] = name
+                self.assertEqual(values["serviceAccount"], expected)
+                self.assertEqual(application.model_dump(), before)
+
     def test_init_container_values_and_shared_volumes(self):
         for count in (1, 2):
             with self.subTest(count=count):

@@ -188,6 +188,10 @@ execution in the application and CLI selection remain deferred. The chart consum
 The legacy Helm-values helper remains compatibility code,
 sharing image-reference splitting with the new renderer.
 
+A declared Application serviceAccount becomes `serviceAccount.name` with
+`serviceAccount.create=false`. The chart references that exact identity without
+creating a ServiceAccount. When absent, the existing default identity is preserved.
+
 Multiple application containers render in declaration order through a `containers`
 values list, each with independent supported settings. Single-container values keep
 their existing top-level fields. Both shapes use one container translator and one
