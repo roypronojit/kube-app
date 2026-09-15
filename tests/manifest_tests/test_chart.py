@@ -1,5 +1,6 @@
 """Chart consumption of Basic values; requires Helm on PATH."""
 
+from copy import deepcopy
 import shutil
 import subprocess
 import tempfile
@@ -9,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from kubeapp.parser import load_application
-from kubeapp.renderers import HelmRenderer
+from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,9 +20,8 @@ HELM = shutil.which("helm")
 @unittest.skipUnless(HELM, "Helm is required for chart template tests")
 class BasicChartTests(unittest.TestCase):
     def setUp(self):
-        self.values = HelmRenderer().render(
-            load_application(ROOT / "examples/basic/app.yaml")
-        )
+        self.application = load_application(ROOT / "examples/basic/app.yaml")
+        self.values = HelmRenderer().render(self.application)
 
     def render_documents(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -51,6 +51,36 @@ class BasicChartTests(unittest.TestCase):
                 )
                 self.assertTrue(document["metadata"]["name"])
                 self.assertIsInstance(document["spec"], dict)
+
+    def test_basic_renderers_are_semantically_equivalent(self):
+        kubernetes = KubernetesRenderer().render(self.application)
+        helm = self.render_documents()
+        self.assertCountEqual(
+            [doc["kind"] for doc in helm], [doc["kind"] for doc in kubernetes]
+        )
+        expected = {doc["kind"]: doc for doc in kubernetes}
+        for document in helm:
+            actual = deepcopy(document)
+            reference = deepcopy(expected[actual["kind"]])
+            # Only descriptive labels on resource metadata are ignored. Pod
+            # labels and every selector remain intact and must match exactly.
+            for key in (
+                "helm.sh/chart", "app.kubernetes.io/managed-by",
+                "app.kubernetes.io/version",
+            ):
+                actual["metadata"]["labels"].pop(key, None)
+            if actual["kind"] == "Deployment":
+                # Kubernetes uses the namespace's default service account
+                # when serviceAccountName is omitted.
+                for resource in (actual, reference):
+                    resource["spec"]["template"]["spec"].setdefault(
+                        "serviceAccountName", "default"
+                    )
+            for field in ("apiVersion", "metadata", "spec"):
+                with self.subTest(kind=actual["kind"], field=field):
+                    self.assertEqual(actual[field], reference[field])
+            with self.subTest(kind=actual["kind"], field="resource fields"):
+                self.assertEqual(set(actual), set(reference))
 
     def test_basic_values_are_consumed(self):
         for port_name in ("http", "web"):

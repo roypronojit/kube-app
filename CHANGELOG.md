@@ -32,7 +32,13 @@ Increment `PATCH` when more than one release is made on the same day.
 - Added Basic parser-to-values-to-Helm integration coverage for successful
   templating, YAML parsing, and exactly one Deployment and one Service.
   Removed the connection-test hook that emitted an unexpected Pod.
-- Added focused chart template tests. All 180 unittest tests pass, including
+- Added Basic semantic equivalence coverage for resource identity, labels and
+  selectors, replicas, container settings, resources, and Service routing.
+  Fixed chart helpers to use the Application name for resource names and labels,
+  removing release-specific selector constraints; updated pod lookup instructions.
+  Comparisons ignore only descriptive Helm resource labels and normalize omitted
+  serviceAccountName to Kubernetes' default service account.
+- Added focused chart template tests. All 181 unittest tests pass, including
   chart tests; `helm lint charts/kube-app` passes with no failed charts.
 
 ## 2026.09.14.2 - [0.1.1]
