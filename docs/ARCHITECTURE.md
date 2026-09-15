@@ -188,6 +188,12 @@ execution in the application and CLI selection remain deferred. The chart consum
 The legacy Helm-values helper remains compatibility code,
 sharing image-reference splitting with the new renderer.
 
+Multiple application containers render in declaration order through a `containers`
+values list, each with independent supported settings. Single-container values keep
+their existing top-level fields. Both shapes use one container translator and one
+chart loop. Resources remain application-scoped and volumes are deduplicated across
+containers. Explicit Service container selection remains deferred.
+
 ## Development Rule
 
 For every feature ask:

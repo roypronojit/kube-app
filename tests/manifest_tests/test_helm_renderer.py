@@ -10,12 +10,40 @@ from kubeapp.models import Application
 from kubeapp.parser import load_application
 from kubeapp.renderers import HelmRenderer, Renderer
 
-from .helpers import health_application, inline_secret_application, mounted_application
+from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_multiple_containers_keep_independent_values_and_shared_resources(self):
+        application = multiple_container_application()
+        before = application.model_dump()
+        values = HelmRenderer().render(application)
+        containers = values["containers"]
+        self.assertEqual([c["containerName"] for c in containers], ["catalog", "metrics", "worker"])
+        self.assertEqual([c["image"]["pullPolicy"] for c in containers], ["IfNotPresent", "Always", "Never"])
+        self.assertEqual(containers[1]["image"], {"repository": "registry.local/metrics", "tag": "2", "pullPolicy": "Always"})
+        self.assertEqual(containers[0]["env"], [{"name": "ROLE", "value": "primary"}])
+        self.assertEqual(containers[1]["env"], [{"name": "ROLE", "value": "metrics"}])
+        self.assertNotIn("env", containers[2])
+        self.assertNotIn("volumeMounts", containers[2])
+        self.assertNotIn("livenessProbe", containers[0])
+        self.assertNotIn("readinessProbe", containers[1])
+        self.assertEqual(len(values["configuration"]), 1)
+        self.assertEqual(len(values["secrets"]), 1)
+        self.assertEqual(len(values["volumes"]), 3)
+        self.assertEqual(containers[1]["volumeMounts"][0], {"name": "volume-1", "mountPath": "/metrics/data"})
+        self.assertEqual(values["storage"]["name"], "data")
+        self.assertEqual(application.model_dump(), before)
+        self.assertEqual(HelmRenderer().render(application), values)
+
+    def test_multiple_containers_do_not_enable_service_selection(self):
+        data = multiple_container_application().model_dump(by_alias=True)
+        data["service"] = {"port": 80, "container": "catalog"}
+        with self.assertRaisesRegex(NotImplementedError, "explicit service container"):
+            HelmRenderer().render(Application.model_validate(data))
+
     def test_actual_medium_values_include_environment_and_service(self):
         application = load_application(ROOT / "examples/medium/app.yaml")
         values = HelmRenderer().render(application)

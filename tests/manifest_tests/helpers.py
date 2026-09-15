@@ -11,6 +11,34 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def multiple_container_application() -> IntentApplication:
+    data = mounted_application().model_dump(by_alias=True, exclude_none=True)
+    primary = data["containers"][0]
+    primary.update({
+        "ports": [{"name": "http", "port": 8080}],
+        "environment": {"ROLE": "primary"},
+        "configuration": [{"name": "data", "as": "environment"}],
+        "secrets": [{"name": "data", "as": "environment"}],
+        "resources": {"cpu": {"min": "100m", "max": "500m"}},
+        "health": {"ready": {"path": "/ready", "port": "http"}},
+    })
+    data["containers"].extend([{
+        "name": "metrics", "image": "registry.local/metrics:2", "imagePullPolicy": "Always",
+        "ports": [{"name": "metrics", "port": 9090}],
+        "environment": {"ROLE": "metrics"},
+        "configuration": [{"name": "data", "as": "environment"}],
+        "secrets": [{"name": "data", "as": "environment"}],
+        "resources": {"memory": {"min": "64Mi", "max": "128Mi"}},
+        "mounts": [
+            {"storage": "data", "path": "/metrics/data"},
+            {"secret": "data", "path": "/metrics/secret"},
+            {"configuration": "data", "path": "/metrics/config"},
+        ],
+        "health": {"live": {"path": "/live", "port": 9090, "periodSeconds": 7}},
+    }, {"name": "worker", "image": "worker:3", "imagePullPolicy": "Never"}])
+    return IntentApplication.model_validate(data)
+
+
 def health_application(health: dict) -> IntentApplication:
     return IntentApplication.model_validate({
         "name": "catalog",

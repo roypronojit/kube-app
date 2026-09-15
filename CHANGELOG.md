@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.14 - [0.2.0]
+
+- Added ordered multi-container Helm values and Deployment rendering. One shared
+  translator preserves each container's image/policy, ports, environment, resource
+  consumption, requests/limits, mounts, and probes. Single-container values remain compatible.
+- Kept ConfigMaps, Secrets, and PVCs application-scoped; volumes are deduplicated
+  across containers by resource kind/name in first-consumption order.
+- Added independent-settings/shared-resource tests and retained Basic/Medium
+  equivalence regressions. Validation: 203 unittest tests passed; Helm lint passed.
+- Advanced remains blocked by init containers, serviceAccount, command/args,
+  explicit service.container, and Service targeting without a declared port.
+  No CLI selection or full Advanced equivalence was added.
+
 ## 2026.09.15.13 - [0.2.0]
 
 - Added configuration/Secret file loading in HelmRenderer, resolving paths against

@@ -16,7 +16,7 @@ from kubeapp.parser import load_application
 from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
-from .helpers import health_application, inline_secret_application, mounted_application
+from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
 from .test_helm_files import file_application
 
 
@@ -44,6 +44,20 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_multiple_containers_and_shared_resources(self):
+        application = multiple_container_application()
+        self.values = HelmRenderer().render(application)
+        documents = self.render_documents()
+        self.assertCountEqual([doc["kind"] for doc in documents], ["Deployment", "ConfigMap", "Secret", "PersistentVolumeClaim"])
+        pod = next(doc for doc in documents if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+        expected = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+        self.assertEqual([c["name"] for c in pod["containers"]], ["catalog", "metrics", "worker"])
+        for container in expected["containers"]:
+            container.setdefault("resources", {})  # Empty and omitted requests/limits are equivalent.
+        self.assertEqual(pod["containers"], expected["containers"])
+        self.assertEqual(pod["volumes"], expected["volumes"])
+        self.assertEqual(len(pod["volumes"]), 3)
 
     def test_file_resources_render_to_configmap_and_secret(self):
         with tempfile.TemporaryDirectory() as directory:
