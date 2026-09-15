@@ -4,46 +4,80 @@ All notable changes to Kube-App are documented in this file.
 
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
+For v0.2.0 development, entries are split by implementation step; the daily suffix orders
+these checkpoints and does not indicate a separately published release.
+
+## 2026.09.15.7 - [0.2.0]
+
+- Added inline configuration values, ConfigMap templates, and ordered environment
+  consumption through `configMapRef`, using Application-defined names.
+- Preserved string conversion and environment-variable substitution. Configuration
+  files, Secrets, storage, mounts, probes, and other unsupported capabilities still
+  fail explicitly.
+- Added tests for configuration translation, multiple/unconsumed ConfigMaps,
+  empty and multiline data, reference ordering, and unsupported capabilities.
+- Validation: 184 unittest tests passed; Helm lint passed.
+
+## 2026.09.15.6 - [0.2.0]
+
+- Added equivalence tests for resource kinds/names, labels/selectors, replicas,
+  container settings, resource requests/limits, and Service routing.
+- Fixed chart resource names and application labels to use the Application name;
+  removed release-specific selector constraints and updated pod lookup instructions.
+- Ignored only descriptive Helm resource labels and normalized omitted
+  `serviceAccountName` to `default` in comparisons.
+- Validation: 181 unittest tests passed; Helm lint passed.
+
+## 2026.09.15.5 - [0.2.0]
+
+- Added parser-to-values-to-Helm integration coverage for successful templating,
+  YAML parsing, and exactly one Deployment and one Service.
+- Removed the connection-test hook that emitted an unexpected Pod.
+- Validation: 180 unittest tests passed; Helm lint and Basic `helm template` passed.
+
+## 2026.09.15.4 - [0.2.0]
+
+- Updated chart defaults and templates to consume `replicaCount`, `containerName`,
+  image/pull policy, declared ports, resources, and Service type/port/targetPort.
+- Removed legacy scaling defaults and Service-port-derived container ports.
+  Service resources, connection hooks, and notes now honor `service.enabled`;
+  service account creation remains controlled by `serviceAccount.create`.
+- Added focused chart tests for Basic values and optional Service/ports and
+  service account creation.
+- Validation: 179 unittest tests passed; Helm lint passed.
+
+## 2026.09.15.3 - [0.2.0]
+
+- Extended `HelmRenderer` from the skeleton to generate Basic values, replacing
+  `Renderer[Never]` with `Renderer[dict[str, Any]]`. Supported intent includes
+  static replicas, container identity, image/pull policy, ports, resources, and
+  ClusterIP Service targeting. Unsupported capabilities fail explicitly.
+- Moved image-reference splitting into the Helm renderer module; the legacy
+  generator reuses it while preserving its existing output.
+- Added values, image-reference, optional-resource, immutability, and rejection
+  tests. Chart alignment and CLI renderer selection remained deferred.
+- Validation: 177 unittest tests passed.
+
+## 2026.09.15.2 - [0.2.0]
+
+- Added an isolated `HelmRenderer` skeleton implementing `Renderer[Never]` and
+  accepting the existing validated `Application` model.
+- Rendering intentionally raised `NotImplementedError` with the message
+  "Helm rendering is not implemented yet." No values or templates were generated.
+- Preserved the Application schema, KubernetesRenderer behavior, CLI renderer
+  selection, and legacy Helm generator.
+- Added a focused test for renderer contract inputs, intentional failure, and
+  Application immutability.
+- Validation: 174 unittest tests passed.
 
 ## 2026.09.15.1 - [0.2.0]
 
-### Added
-- Helm inline configuration values and ConfigMap templates, with Application-defined
-  names and ordered environment consumption through configMapRef. Inline values
-  retain string conversion and environment-variable substitution. Other unsupported
-  Medium/Advanced capabilities continue to fail explicitly.
-- Focused configuration values and chart tests cover multiple and unconsumed
-  ConfigMaps, empty/string/multiline data, substitution, environment reference
-  ordering, and rejection of configuration files, mounts, and Secrets.
-- Basic Application-to-Helm-values translation owned by `HelmRenderer`, with
-  static replicas, image/pull policy, container name/port, resource requests and
-  limits, and ClusterIP service targeting. Unsupported capabilities fail explicitly.
-- Focused tests for Basic values, image references, optional resources, application
-  immutability, and rejection of unsupported capabilities.
-### Changed
-- Added a renderer-independent `Renderer[Output]` contract and a Kubernetes
-  adapter over the existing manifest implementation; the CLI uses the adapter.
-- Preserved the application schema, Kubernetes output, and existing manifest
-  APIs. Application Helm execution and CLI renderer selection remain
-  deferred. The legacy values helper reuses image splitting from `HelmRenderer`
-  and preserves its existing output.
-- Added renderer boundary tests for output parity, file resolution, model
-  immutability, and legacy compatibility.
-- Aligned the chart with Basic Helm values: static replicaCount, containerName,
-  declared ports, resources, service targeting, and service account creation.
-  Removed legacy scaling defaults and Service-port-derived container ports;
-  Service resources and notes now honor service.enabled.
-- Added Basic parser-to-values-to-Helm integration coverage for successful
-  templating, YAML parsing, and exactly one Deployment and one Service.
-  Removed the connection-test hook that emitted an unexpected Pod.
-- Added Basic semantic equivalence coverage for resource identity, labels and
-  selectors, replicas, container settings, resources, and Service routing.
-  Fixed chart helpers to use the Application name for resource names and labels,
-  removing release-specific selector constraints; updated pod lookup instructions.
-  Comparisons ignore only descriptive Helm resource labels and normalize omitted
-  serviceAccountName to Kubernetes' default service account.
-- Added focused chart template tests. All 184 unittest tests pass, including
-  chart tests; `helm lint charts/kube-app` passes with no failed charts.
+- Added the renderer-independent `Renderer[Output]` contract and Kubernetes
+  adapter; routed the CLI through the adapter.
+- Preserved the Application schema, Kubernetes behavior, and existing manifest
+  APIs. Added boundary tests for output parity, file resolution, immutability,
+  and legacy compatibility, and updated architecture/source/test guides.
+- Validation: 173 unittest tests passed.
 
 ## 2026.09.14.2 - [0.1.1]
 
