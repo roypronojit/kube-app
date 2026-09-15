@@ -26,6 +26,9 @@ envFrom: []
 storage: null
 volumes: []
 volumeMounts: []
+readinessProbe: null
+livenessProbe: null
+startupProbe: null
 
 ingress:
   enabled: false

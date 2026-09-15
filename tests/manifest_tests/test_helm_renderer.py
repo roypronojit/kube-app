@@ -10,12 +10,49 @@ from kubeapp.models import Application
 from kubeapp.parser import load_application
 from kubeapp.renderers import HelmRenderer, Renderer
 
-from .helpers import inline_secret_application, mounted_application
+from .helpers import health_application, inline_secret_application, mounted_application
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_individual_health_probes_preserve_ports_and_model_defaults(self):
+        for alias, field in (("ready", "readinessProbe"), ("live", "livenessProbe"), ("startup", "startupProbe")):
+            for port in (8080, "http"):
+                with self.subTest(probe=alias, port=port):
+                    application = health_application({alias: {"path": f"/{alias}", "port": port}})
+                    before = application.model_dump()
+                    values = HelmRenderer().render(application)
+                    probes = {key: value for key, value in values.items() if key.endswith("Probe")}
+                    self.assertEqual(probes, {field: {
+                        "httpGet": {"path": f"/{alias}", "port": port},
+                        "initialDelaySeconds": 0, "periodSeconds": 10,
+                        "timeoutSeconds": 1, "failureThreshold": 3, "successThreshold": 1,
+                    }})
+                    self.assertEqual(application.model_dump(), before)
+
+    def test_all_health_probes_preserve_explicit_timing(self):
+        timing = {
+            "initialDelaySeconds": 5, "timeoutSeconds": 2,
+            "failureThreshold": 4, "successThreshold": 1,
+        }
+        application = health_application({
+            "ready": {"path": "/ready", "port": "http", "frequencySeconds": 7, **timing, "successThreshold": 2},
+            "live": {"path": "/live", "port": 8080, "periodSeconds": 8, **timing},
+            "startup": {"path": "/startup", "port": "http", "periodSeconds": 9, **timing},
+        })
+        values = HelmRenderer().render(application)
+        for field, path, port, period, success in (
+            ("readinessProbe", "/ready", "http", 7, 2),
+            ("livenessProbe", "/live", 8080, 8, 1),
+            ("startupProbe", "/startup", "http", 9, 1),
+        ):
+            with self.subTest(probe=field):
+                self.assertEqual(values[field], {
+                    "httpGet": {"path": path, "port": port},
+                    **timing, "periodSeconds": period, "successThreshold": success,
+                })
+
     def test_storage_values_preserve_intent_and_defaults(self):
         for options in ({}, {"storageClass": "fast", "accessModes": ["ReadWriteMany", "ReadOnlyMany"]}):
             with self.subTest(options=options):
@@ -207,7 +244,6 @@ class HelmRendererTests(unittest.TestCase):
             ("environment", {"MODE": "test"}),
             ("command", ["run"]),
             ("args", ["--debug"]),
-            ("health", {"readiness": {"path": "/", "port": 8080}}),
             ("ports", [{"name": "dns", "port": 5353, "protocol": "UDP"}]),
             ("image", "nginx@sha256:abcd"),
         ):

@@ -11,6 +11,17 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def health_application(health: dict) -> IntentApplication:
+    return IntentApplication.model_validate({
+        "name": "catalog",
+        "containers": [{
+            "name": "catalog", "image": "catalog:1",
+            "ports": [{"name": "http", "port": 8080}],
+            "health": health,
+        }],
+    })
+
+
 def mounted_application() -> IntentApplication:
     """Same resource name across kinds, repeated sources, and distinct paths."""
     return IntentApplication.model_validate({

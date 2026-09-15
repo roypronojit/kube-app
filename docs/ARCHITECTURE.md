@@ -171,7 +171,9 @@ optional storageClass, and accessModes. Mounts produce `volumes` and `volumeMoun
 configuration/Secret mounts are read-only, while storage mounts use the PVC with
 default read-write access. Mount order is preserved, and repeated sources share
 one volume identified by resource kind and name.
-File-based configuration/Secrets, health probes, and other Medium/Advanced capabilities
+HTTP health intent maps to readinessProbe, livenessProbe, and startupProbe values.
+Only declared probes render; numeric/named ports and model timing defaults are preserved.
+File-based configuration/Secrets and other unsupported Medium/Advanced capabilities
 remain unsupported and fail explicitly. Helm template
 execution in the application and CLI selection remain deferred. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors

@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.11 - [0.2.0]
+
+- Added Helm HTTP readiness, liveness, and startup probe values and conditional
+  Deployment rendering, preserving path, numeric/named ports, and timing fields.
+- Mapped ready/live aliases and frequencySeconds to Kubernetes probe names and
+  periodSeconds. Omitted timing fields retain Application defaults; undeclared
+  probes remain absent, matching KubernetesRenderer semantics.
+- Added individual/all-probe tests for values, explicit/default timings, ports,
+  immutability, and chart output. Existing renderer regressions remain covered.
+- Validation: 194 unittest tests passed; Helm lint passed. Schema,
+  KubernetesRenderer, and CLI are unchanged; file inputs remain unsupported.
+
 ## 2026.09.15.10 - [0.2.0]
 
 - Added Helm volumes and volumeMounts for configuration, Secrets, and storage;

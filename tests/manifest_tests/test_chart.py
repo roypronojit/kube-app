@@ -15,7 +15,7 @@ from kubeapp.parser import load_application
 from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
-from .helpers import inline_secret_application, mounted_application
+from .helpers import health_application, inline_secret_application, mounted_application
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +42,32 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_http_probes_match_kubernetes_probe_semantics(self):
+        probes = {
+            "ready": {"path": "/ready", "port": "http", "successThreshold": 2},
+            "live": {"path": "/live", "port": 8080},
+            "startup": {
+                "path": "/startup", "port": "http", "initialDelaySeconds": 5,
+                "frequencySeconds": 7, "timeoutSeconds": 2,
+                "failureThreshold": 8, "successThreshold": 1,
+            },
+        }
+        for declared in (("ready",), ("live",), ("startup",), tuple(probes)):
+            with self.subTest(declared=declared):
+                application = health_application({name: probes[name] for name in declared})
+                self.values = HelmRenderer().render(application)
+                documents = self.render_documents()
+                self.assertEqual([doc["kind"] for doc in documents], ["Deployment"])
+                container = documents[0]["spec"]["template"]["spec"]["containers"][0]
+                reference = KubernetesRenderer().render(application)[0]["spec"]["template"]["spec"]["containers"][0]
+                self.assertEqual(
+                    {key: value for key, value in container.items() if key.endswith("Probe")},
+                    {key: value for key, value in reference.items() if key.endswith("Probe")},
+                )
+        self.values = HelmRenderer().render(self.application)
+        container = self.render_chart()["Deployment"]["spec"]["template"]["spec"]["containers"][0]
+        self.assertFalse(any(key.endswith("Probe") for key in container))
 
     def test_resource_mounts_match_kubernetes_mount_semantics(self):
         application = mounted_application()

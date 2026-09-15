@@ -101,6 +101,14 @@ class HelmRenderer(Renderer[dict[str, Any]]):
                 volume_mounts.append(rendered_mount)
             values["volumes"] = list(volumes.values())
             values["volumeMounts"] = volume_mounts
+        if container.health:
+            for name in ("readiness", "liveness", "startup"):
+                probe = getattr(container.health, name)
+                if probe is not None:
+                    values[f"{name}Probe"] = {
+                        "httpGet": {"path": probe.path, "port": probe.port},
+                        **probe.model_dump(by_alias=True, exclude={"path", "port"}),
+                    }
         return values
 
 
@@ -118,7 +126,7 @@ def _validate_supported(application: Application) -> None:
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("environment", "health", "command", "args"):
+        for field in ("environment", "command", "args"):
             if getattr(container, field):
                 unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
@@ -133,7 +141,7 @@ def _validate_supported(application: Application) -> None:
     if unsupported:
         raise NotImplementedError(
             "Helm values support only Basic capabilities and inline configuration/secrets "
-            "consumed as environment, plus storage claims and resource mounts; unsupported: "
+            "consumed as environment, plus storage claims, resource mounts, and HTTP probes; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
 
