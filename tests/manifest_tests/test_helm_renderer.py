@@ -12,6 +12,7 @@ from kubeapp.renderers import HelmRenderer, Renderer
 
 from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
 from .helpers import init_container_application
+from .helpers import process_application
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -37,13 +38,23 @@ class HelmRendererTests(unittest.TestCase):
                     self.assertFalse(any(key.endswith("Probe") for key in container))
                 self.assertEqual(application.model_dump(), before)
 
-    def test_init_command_and_args_remain_unsupported(self):
-        for field in ("command", "args"):
-            with self.subTest(field=field):
-                data = init_container_application(1).model_dump(by_alias=True)
-                data["init"][0][field] = ["run"]
-                with self.assertRaisesRegex(NotImplementedError, field):
-                    HelmRenderer().render(Application.model_validate(data))
+    def test_command_args_values_preserve_order_and_do_not_alias_model(self):
+        application = process_application()
+        before = application.model_dump()
+        values = HelmRenderer().render(application)
+        for field, models in (("containers", application.containers), ("initContainers", application.init)):
+            for rendered, model in zip(values[field], models):
+                with self.subTest(container=model.name):
+                    self.assertEqual(rendered["containerName"], model.name)
+                    for key in ("command", "args"):
+                        expected = getattr(model, key)
+                        if expected is None:
+                            self.assertNotIn(key, rendered)
+                        else:
+                            self.assertEqual(rendered[key], expected)
+                            self.assertIsNot(rendered[key], expected)
+                            rendered[key].append("output-only")
+        self.assertEqual(application.model_dump(), before)
 
     def test_multiple_containers_keep_independent_values_and_shared_resources(self):
         application = multiple_container_application()
@@ -318,8 +329,6 @@ class HelmRendererTests(unittest.TestCase):
 
     def test_unsupported_capabilities_are_not_silently_dropped(self):
         for field, value in (
-            ("command", ["run"]),
-            ("args", ["--debug"]),
             ("ports", [{"name": "dns", "port": 5353, "protocol": "UDP"}]),
             ("image", "nginx@sha256:abcd"),
         ):

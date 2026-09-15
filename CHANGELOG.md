@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.1 - [0.2.0]
+
+- Step 16: added command/args translation and Deployment rendering for application
+  and init containers. Lists preserve values and order exactly and are omitted
+  when undeclared; shared translation copies lists without mutating the model.
+- Added values/chart coverage for command-only, args-only, both, omission, and
+  independent settings across multiple application/init containers, including
+  whitespace, empty arguments, repeated flags, and literal expressions.
+- Validation: 207 unittest tests passed, including Basic/Medium equivalence;
+  Helm lint passed. No CLI or full Advanced equivalence changes.
+- Advanced remains blocked by serviceAccount, explicit service.container, and
+  Service targeting without a declared container port.
+
 ## 2026.09.15.15 - [0.2.0]
 
 - Added init[] translation to ordered Helm initContainers values and a separate

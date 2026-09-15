@@ -11,6 +11,20 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def process_application() -> IntentApplication:
+    settings = [
+        {"command": ["/bin/sh", "-c", "echo hello world"]},
+        {"args": ["--name", "two words", "", "$(VALUE)", "{{ literal }}", "true"]},
+        {"command": ["/app/run"], "args": ["--port", "8080", "--port", "9090"]},
+        {},
+    ]
+    return IntentApplication.model_validate({
+        "name": "catalog",
+        "containers": [{"name": f"app-{i}", "image": "app:1", **item} for i, item in enumerate(settings)],
+        "init": [{"name": f"init-{i}", "image": "init:2", **item} for i, item in enumerate(reversed(settings))],
+    })
+
+
 def init_container_application(count=2) -> IntentApplication:
     data = multiple_container_application().model_dump(by_alias=True, exclude_none=True)
     data["init"] = [

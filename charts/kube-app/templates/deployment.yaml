@@ -25,6 +25,14 @@ spec:
         - name: {{ .containerName }}
           image: "{{ .image.repository }}:{{ .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy }}
+          {{- with .command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .env }}
           env:
             {{- toYaml . | nindent 12 }}
@@ -46,6 +54,14 @@ spec:
         - name: {{ $container.containerName }}
           image: "{{ $container.image.repository }}:{{ $container.image.tag }}"
           imagePullPolicy: {{ $container.image.pullPolicy }}
+          {{- with $container.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $container.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $container.env }}
           env:
             {{- toYaml . | nindent 12 }}

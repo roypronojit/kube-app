@@ -196,8 +196,9 @@ containers. Explicit Service container selection remains deferred.
 
 Init containers use a separate ordered `initContainers` values list and chart block.
 They reuse supported container resource translation and allocate shared volumes
-before application containers, matching KubernetesRenderer. Command/args and init
-ports remain unsupported; the model prohibits init health probes.
+before application containers, matching KubernetesRenderer. Both application and
+init containers preserve declared command/args lists exactly; undeclared fields
+are omitted. Init ports remain unsupported; the model prohibits init health probes.
 
 ## Development Rule
 

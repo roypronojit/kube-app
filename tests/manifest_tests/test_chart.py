@@ -18,6 +18,7 @@ from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
 from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
 from .helpers import init_container_application
+from .helpers import process_application
 from .test_helm_files import file_application
 
 
@@ -45,6 +46,21 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_command_args_for_application_and_init_containers(self):
+        application = process_application()
+        self.values = HelmRenderer().render(application)
+        pod = self.render_chart()["Deployment"]["spec"]["template"]["spec"]
+        for field, models in (("containers", application.containers), ("initContainers", application.init)):
+            self.assertEqual([c["name"] for c in pod[field]], [c.name for c in models])
+            for rendered, model in zip(pod[field], models):
+                with self.subTest(container=model.name):
+                    for key in ("command", "args"):
+                        expected = getattr(model, key)
+                        if expected is None:
+                            self.assertNotIn(key, rendered)
+                        else:
+                            self.assertEqual(rendered[key], expected)
 
     def test_init_containers_share_resources_and_preserve_order(self):
         for count in (1, 2):

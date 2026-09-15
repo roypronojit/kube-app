@@ -99,6 +99,10 @@ def _container_values(
         ],
         "resources": resources,
     }
+    for field in ("command", "args"):
+        value = getattr(container, field)
+        if value is not None:
+            values[field] = list(value)
     env_from = [
         {"configMapRef": {"name": reference.name}}
         for reference in container.configuration
@@ -158,9 +162,6 @@ def _validate_supported(application: Application) -> None:
     for container in [*application.init, *application.containers]:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("command", "args"):
-            if getattr(container, field):
-                unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
             unsupported.append("ports other than a single TCP port")
     if application.service:
