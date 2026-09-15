@@ -16,6 +16,34 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_storage_values_preserve_intent_and_defaults(self):
+        for options in ({}, {"storageClass": "fast", "accessModes": ["ReadWriteMany", "ReadOnlyMany"]}):
+            with self.subTest(options=options):
+                application = Application.model_validate({
+                    "name": "catalog",
+                    "storage": {"name": "data", "size": "10Gi", **options},
+                    "containers": [{"name": "catalog", "image": "catalog:1"}],
+                })
+                before = application.model_dump()
+                self.assertEqual(HelmRenderer().render(application)["storage"], {
+                    "name": "data", "size": "10Gi",
+                    "accessModes": ["ReadWriteOnce"], **options,
+                })
+                self.assertEqual(application.model_dump(), before)
+        basic = load_application(ROOT / "examples/basic/app.yaml")
+        self.assertNotIn("storage", HelmRenderer().render(basic))
+
+    def test_storage_mounts_remain_unsupported(self):
+        application = Application.model_validate({
+            "name": "catalog", "storage": {"name": "data", "size": "10Gi"},
+            "containers": [{
+                "name": "catalog", "image": "catalog:1",
+                "mounts": [{"storage": "data", "path": "/data"}],
+            }],
+        })
+        with self.assertRaisesRegex(NotImplementedError, "mounts"):
+            HelmRenderer().render(application)
+
     def test_inline_secret_values_substitution_and_consumption_order(self):
         application = inline_secret_application()
         before = application.model_dump()

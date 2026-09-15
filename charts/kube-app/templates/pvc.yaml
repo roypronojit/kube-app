@@ -1,0 +1,17 @@
+{{- with .Values.storage }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-%s" $.Values.name .name | quote }}
+  labels:
+    {{- include "kube-app.labels" $ | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .accessModes | nindent 4 }}
+  {{- if hasKey . "storageClass" }}
+  storageClassName: {{ .storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .size | quote }}
+{{- end }}

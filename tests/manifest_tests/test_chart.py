@@ -43,6 +43,41 @@ class BasicChartTests(unittest.TestCase):
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
 
+    def test_storage_pvc_matches_kubernetes_semantics(self):
+        for options in ({}, {"storageClass": "fast", "accessModes": ["ReadWriteMany", "ReadOnlyMany"]}):
+            with self.subTest(options=options):
+                application = Application.model_validate({
+                    "name": "catalog",
+                    "storage": {"name": "data", "size": "10Gi", **options},
+                    "containers": [{"name": "catalog", "image": "catalog:1"}],
+                })
+                self.values = HelmRenderer().render(application)
+                documents = self.render_documents()
+                self.assertCountEqual(
+                    [doc["kind"] for doc in documents],
+                    ["Deployment", "PersistentVolumeClaim"],
+                )
+                pvc = next(doc for doc in documents if doc["kind"] == "PersistentVolumeClaim")
+                expected = next(
+                    doc for doc in KubernetesRenderer().render(application)
+                    if doc["kind"] == "PersistentVolumeClaim"
+                )
+                self.assertEqual(pvc["apiVersion"], "v1")
+                self.assertEqual(pvc["metadata"]["name"], "catalog-data")
+                self.assertEqual(pvc["metadata"]["name"], expected["metadata"]["name"])
+                self.assertEqual(pvc["spec"], expected["spec"])
+                self.assertEqual(pvc["spec"]["resources"], {"requests": {"storage": "10Gi"}})
+                self.assertEqual(pvc["spec"]["accessModes"], options.get("accessModes", ["ReadWriteOnce"]))
+                if "storageClass" in options:
+                    self.assertEqual(pvc["spec"]["storageClassName"], "fast")
+                else:
+                    self.assertNotIn("storageClassName", pvc["spec"])
+                pod = next(doc for doc in documents if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                self.assertNotIn("volumes", pod)
+                self.assertNotIn("volumeMounts", pod["containers"][0])
+        self.values = HelmRenderer().render(self.application)
+        self.assertNotIn("PersistentVolumeClaim", self.render_chart())
+
     def test_inline_secrets_and_environment_consumption(self):
         application = inline_secret_application()
         with patch.dict(os.environ, {"HELM_TEST_PASSWORD": "example"}):

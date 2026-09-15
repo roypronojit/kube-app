@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.9 - [0.2.0]
+
+- Added Helm storage values and a PVC template preserving storage name, size,
+  optional storageClass, and accessModes. Claims use `<application>-<storage>`
+  names and match KubernetesRenderer PVC semantics; absent storage emits no PVC.
+- Added tests for values/defaults, claim identity and spec, omitted storage class,
+  absent PVCs, and continued rejection of storage mounts. Basic, ConfigMap, and
+  Secret behavior remains covered by existing regressions.
+- Mounts, probes, file-based configuration/Secrets, and other unsupported
+  capabilities remain deferred; the schema, KubernetesRenderer, and CLI are unchanged.
+- Validation: 190 unittest tests passed; Helm lint passed.
+
 ## 2026.09.15.8 - [0.2.0]
 
 - Added inline Secret values and a Secret chart template using Application-defined

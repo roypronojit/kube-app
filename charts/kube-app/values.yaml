@@ -23,6 +23,7 @@ resources: {}
 configuration: []
 secrets: []
 envFrom: []
+storage: null
 
 ingress:
   enabled: false

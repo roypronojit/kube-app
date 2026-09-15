@@ -1,4 +1,4 @@
-"""Helm values for Basic capabilities and inline configuration/Secret environments.
+"""Helm values for Basic, inline resource environments, and storage claims.
 
 The kube-app chart consumes these values; Helm execution is left to callers.
 """
@@ -73,12 +73,16 @@ class HelmRenderer(Renderer[dict[str, Any]]):
         ]
         if env_from:
             values["envFrom"] = env_from
+        if application.storage is not None:
+            values["storage"] = application.storage.model_dump(
+                by_alias=True, exclude_none=True
+            )
         return values
 
 
 def _validate_supported(application: Application) -> None:
     unsupported = []
-    for field in ("init", "storage", "service_account"):
+    for field in ("init", "service_account"):
         if getattr(application, field):
             unsupported.append(field)
     if len(application.containers) != 1:
@@ -105,7 +109,7 @@ def _validate_supported(application: Application) -> None:
     if unsupported:
         raise NotImplementedError(
             "Helm values support only Basic capabilities and inline configuration/secrets "
-            "consumed as environment; unsupported: "
+            "consumed as environment, plus storage claims; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
 
