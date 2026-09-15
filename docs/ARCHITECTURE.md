@@ -194,6 +194,11 @@ their existing top-level fields. Both shapes use one container translator and on
 chart loop. Resources remain application-scoped and volumes are deduplicated across
 containers. Explicit Service container selection remains deferred.
 
+Init containers use a separate ordered `initContainers` values list and chart block.
+They reuse supported container resource translation and allocate shared volumes
+before application containers, matching KubernetesRenderer. Command/args and init
+ports remain unsupported; the model prohibits init health probes.
+
 ## Development Rule
 
 For every feature ask:

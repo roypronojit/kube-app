@@ -27,6 +27,11 @@ class HelmRenderer(Renderer[dict[str, Any]]):
             "serviceAccount": {"create": False},
         }
         volumes: dict[tuple[str, str], dict[str, Any]] = {}
+        if application.init:
+            values["initContainers"] = [
+                _init_container_values(application, container, volumes)
+                for container in application.init
+            ]
         containers = [
             _container_values(application, container, volumes)
             for container in application.containers
@@ -53,6 +58,16 @@ class HelmRenderer(Renderer[dict[str, Any]]):
         if application.storage is not None:
             values["storage"] = application.storage.model_dump(by_alias=True, exclude_none=True)
         return values
+
+
+def _init_container_values(
+    application: Application, container: IntentContainer,
+    volumes: dict[tuple[str, str], dict[str, Any]],
+) -> dict[str, Any]:
+    """Init containers share resource translation but do not expose ports/probes."""
+    values = _container_values(application, container, volumes)
+    values.pop("ports")
+    return values
 
 
 def _container_values(
@@ -134,10 +149,13 @@ def _container_values(
 
 def _validate_supported(application: Application) -> None:
     unsupported = []
-    for field in ("init", "service_account"):
+    for field in ("service_account",):
         if getattr(application, field):
             unsupported.append(field)
-    for container in application.containers:
+    for container in application.init:
+        if container.ports:
+            unsupported.append("init container ports")
+    for container in [*application.init, *application.containers]:
         if "@" in container.image:
             unsupported.append("digest image references")
         for field in ("command", "args"):

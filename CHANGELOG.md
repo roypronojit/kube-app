@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.15 - [0.2.0]
+
+- Added init[] translation to ordered Helm initContainers values and a separate
+  Deployment initContainers block, omitted when no init containers are declared.
+- Reused container translation for images/policies, environment/resource references,
+  requests/limits, and mounts. Init containers allocate shared volumes before application
+  containers, matching KubernetesRenderer; resource declarations remain unduplicated.
+- Added one/multiple-init tests for ordering, independent settings, shared resources,
+  volume deduplication, absence, and continued command/args rejection.
+- Validation: 206 unittest tests passed, including Basic/Medium equivalence; Helm lint passed.
+- Advanced remains blocked by serviceAccount, command/args, explicit service.container,
+  and Service targeting without a declared port. No full Advanced equivalence or CLI changes.
+
 ## 2026.09.15.14 - [0.2.0]
 
 - Added ordered multi-container Helm values and Deployment rendering. One shared

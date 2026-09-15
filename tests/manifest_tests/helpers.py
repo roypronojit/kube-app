@@ -11,6 +11,29 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def init_container_application(count=2) -> IntentApplication:
+    data = multiple_container_application().model_dump(by_alias=True, exclude_none=True)
+    data["init"] = [
+        {
+            "name": "prepare", "image": "prepare:1", "imagePullPolicy": "Always",
+            "environment": {"TASK": "prepare"},
+            "configuration": [{"name": "data", "as": "environment"}],
+            "secrets": [{"name": "data", "as": "environment"}],
+            "resources": {"cpu": {"min": "50m"}},
+            "mounts": [{"storage": "data", "path": "/init/data"},
+                       {"configuration": "data", "path": "/init/config"}],
+        },
+        {
+            "name": "verify", "image": "verify:2", "imagePullPolicy": "Never",
+            "environment": {"TASK": "verify"},
+            "resources": {"memory": {"max": "64Mi"}},
+            "mounts": [{"secret": "data", "path": "/verify/secret"},
+                       {"storage": "data", "path": "/verify/data"}],
+        },
+    ][:count]
+    return IntentApplication.model_validate(data)
+
+
 def multiple_container_application() -> IntentApplication:
     data = mounted_application().model_dump(by_alias=True, exclude_none=True)
     primary = data["containers"][0]

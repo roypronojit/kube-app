@@ -2,6 +2,7 @@ name: kube-app
 replicaCount: 1
 containerName: kube-app
 containers: []
+initContainers: []
 
 image:
   repository: nginx

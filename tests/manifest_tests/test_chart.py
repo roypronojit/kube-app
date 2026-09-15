@@ -17,6 +17,7 @@ from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
 from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
+from .helpers import init_container_application
 from .test_helm_files import file_application
 
 
@@ -44,6 +45,26 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_init_containers_share_resources_and_preserve_order(self):
+        for count in (1, 2):
+            with self.subTest(count=count):
+                application = init_container_application(count)
+                self.values = HelmRenderer().render(application)
+                documents = self.render_documents()
+                self.assertCountEqual([doc["kind"] for doc in documents], ["Deployment", "ConfigMap", "Secret", "PersistentVolumeClaim"])
+                pod = next(doc for doc in documents if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                expected = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+                self.assertEqual([c["name"] for c in pod["initContainers"]], ["prepare", "verify"][:count])
+                self.assertEqual(pod["initContainers"], expected["initContainers"])
+                self.assertEqual(pod["volumes"], expected["volumes"])
+                self.assertEqual(len(pod["volumes"]), 3)
+                for actual, reference in zip(pod["containers"], expected["containers"]):
+                    self.assertEqual(actual.get("volumeMounts"), reference.get("volumeMounts"))
+        self.values = HelmRenderer().render(self.application)
+        self.assertNotIn("initContainers", self.values)
+        pod = self.render_chart()["Deployment"]["spec"]["template"]["spec"]
+        self.assertNotIn("initContainers", pod)
 
     def test_multiple_containers_and_shared_resources(self):
         application = multiple_container_application()

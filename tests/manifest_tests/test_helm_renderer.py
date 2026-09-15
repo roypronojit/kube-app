@@ -11,11 +11,40 @@ from kubeapp.parser import load_application
 from kubeapp.renderers import HelmRenderer, Renderer
 
 from .helpers import health_application, inline_secret_application, mounted_application, multiple_container_application
+from .helpers import init_container_application
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_init_container_values_and_shared_volumes(self):
+        for count in (1, 2):
+            with self.subTest(count=count):
+                application = init_container_application(count)
+                before = application.model_dump()
+                values = HelmRenderer().render(application)
+                init = values["initContainers"]
+                self.assertEqual([c["containerName"] for c in init], ["prepare", "verify"][:count])
+                self.assertEqual(init[0]["image"], {"repository": "prepare", "tag": "1", "pullPolicy": "Always"})
+                self.assertEqual(init[0]["env"], [{"name": "TASK", "value": "prepare"}])
+                self.assertEqual(init[0]["envFrom"], [{"configMapRef": {"name": "data"}}, {"secretRef": {"name": "data"}}])
+                self.assertEqual(init[0]["resources"], {"requests": {"cpu": "50m"}})
+                self.assertEqual(init[0]["volumeMounts"][0], {"name": "volume-0", "mountPath": "/init/data"})
+                self.assertEqual(len(values["volumes"]), 3)
+                self.assertEqual(values["volumes"][0], {"name": "volume-0", "persistentVolumeClaim": {"claimName": "catalog-data"}})
+                for container in init:
+                    self.assertNotIn("ports", container)
+                    self.assertFalse(any(key.endswith("Probe") for key in container))
+                self.assertEqual(application.model_dump(), before)
+
+    def test_init_command_and_args_remain_unsupported(self):
+        for field in ("command", "args"):
+            with self.subTest(field=field):
+                data = init_container_application(1).model_dump(by_alias=True)
+                data["init"][0][field] = ["run"]
+                with self.assertRaisesRegex(NotImplementedError, field):
+                    HelmRenderer().render(Application.model_validate(data))
+
     def test_multiple_containers_keep_independent_values_and_shared_resources(self):
         application = multiple_container_application()
         before = application.model_dump()
