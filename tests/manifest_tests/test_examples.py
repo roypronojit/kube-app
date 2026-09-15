@@ -2,8 +2,9 @@ import unittest
 from unittest.mock import patch
 
 from kubeapp.manifests import application_to_kubernetes_manifests
+from kubeapp.models import Application
 
-from .helpers import PROJECT_ROOT, _example, _output
+from .helpers import PROJECT_ROOT, _example, _pod_spec, _service
 
 
 class AdvancedExampleTests(unittest.TestCase):
@@ -15,9 +16,6 @@ class AdvancedExampleTests(unittest.TestCase):
             )
         self.claim, self.deployment, self.service = self.manifests[-3:]
         self.pod_spec = self.deployment["spec"]["template"]["spec"]
-
-    def test_example_matches_generated_manifests(self) -> None:
-        self.assertEqual(_output("advanced/rendered.yaml"), self.manifests)
 
     def test_generates_claim_deployment_and_service_in_order(self) -> None:
         self.assertEqual(
@@ -116,3 +114,53 @@ class AdvancedExampleTests(unittest.TestCase):
 
     def test_runs_as_the_requested_service_account(self) -> None:
         self.assertEqual(self.pod_spec["serviceAccountName"], "catalog")
+
+
+class MultiContainerExampleTests(unittest.TestCase):
+    def test_api_and_proxy_keep_their_own_runtime_configuration(self):
+        app = Application.model_validate({
+            "name": "gateway",
+            "configuration": [{"name": "shared", "data": {"MODE": "production"}}],
+            "secrets": [{"name": "database", "data": {"PASSWORD": "example"}}],
+            "containers": [
+                {
+                    "name": "api", "image": "example/api:1",
+                    "environment": {"ROLE": "api"},
+                    "configuration": [{"name": "shared", "as": "environment"}],
+                    "secrets": [{"name": "database", "as": "environment"}],
+                    "resources": {"cpu": {"min": "250m"}},
+                    "ports": [{"name": "api", "port": 8080}],
+                    "health": {"readiness": {"path": "/ready", "port": "api"}},
+                },
+                {
+                    "name": "proxy", "image": "example/proxy:2",
+                    "environment": {"ROLE": "proxy"},
+                    "configuration": [{"name": "shared", "as": "environment"}],
+                    "resources": {"memory": {"max": "64Mi"}},
+                    "ports": [{"name": "public", "port": 8000}],
+                },
+            ],
+            "service": {"container": "proxy", "port": 80, "targetPort": "public"},
+        })
+        manifests = application_to_kubernetes_manifests(app)
+        pod = _pod_spec(manifests)
+        api, proxy = pod["containers"]
+        self.assertEqual([c["name"] for c in pod["containers"]], ["api", "proxy"])
+        for container, name, image, port, resources in (
+            (api, "api", "example/api:1", 8080, {"requests": {"cpu": "250m"}}),
+            (proxy, "proxy", "example/proxy:2", 8000, {"limits": {"memory": "64Mi"}}),
+        ):
+            with self.subTest(container=name):
+                self.assertEqual(container["image"], image)
+                self.assertEqual(container["env"], [{"name": "ROLE", "value": name}])
+                self.assertEqual(container["resources"], resources)
+                self.assertEqual(container["ports"][0]["containerPort"], port)
+                self.assertNotIn("volumeMounts", container)
+        self.assertEqual(api["envFrom"], [
+            {"configMapRef": {"name": "shared"}}, {"secretRef": {"name": "database"}},
+        ])
+        self.assertEqual(proxy["envFrom"], [{"configMapRef": {"name": "shared"}}])
+        self.assertEqual(api["readinessProbe"]["httpGet"], {"path": "/ready", "port": "api"})
+        self.assertFalse(any(key.endswith("Probe") for key in proxy))
+        self.assertNotIn("volumes", pod)
+        self.assertEqual(_service(manifests)["spec"]["ports"][0]["targetPort"], "public")

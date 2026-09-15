@@ -2,6 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
+from kubeapp.models import IntentMount, StorageSpec
 from .helpers import _container, _containers_application, _storage_application
 
 
@@ -210,6 +211,19 @@ class MountModelTests(unittest.TestCase):
 
 
 class StorageModelTests(unittest.TestCase):
+    def test_storage_class_length_boundary(self):
+        name = ".".join(["a" * 63] * 3 + ["a" * 61])
+        self.assertEqual(StorageSpec(name="data", size="1Gi", storageClass=name).storage_class, name)
+        with self.assertRaises(ValidationError):
+            StorageSpec(name="data", size="1Gi", storageClass=name + "a")
+
+    def test_accepts_supported_suffixes_and_fractional_sizes(self):
+        for suffix in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "k", "M", "G", "T", "P", "E"):
+            for amount in ("1", "0.5", "1.25"):
+                size = amount + suffix
+                with self.subTest(size=size):
+                    self.assertEqual(StorageSpec(name="data", size=size).size, size)
+
     def test_accepts_storage(self) -> None:
         application = _storage_application(
             [{"name": "data", "size": "10Gi", "storageClass": "fast"}],
@@ -361,3 +375,10 @@ class StorageModelTests(unittest.TestCase):
             with self.subTest(storage=storage):
                 with self.assertRaises(ValidationError):
                     _storage_application([storage])
+
+
+class IntentMountModelTests(unittest.TestCase):
+    def test_rejects_missing_or_invalid_source(self):
+        for fields in ({}, {"config": "settings"}, {"secret": "Invalid_Name"}):
+            with self.subTest(fields=fields), self.assertRaises(ValidationError):
+                IntentMount.model_validate({"path": "/data", **fields})

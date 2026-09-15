@@ -1,9 +1,13 @@
+import os
 import unittest
+from unittest.mock import patch
 
-from kubeapp.manifests import persistent_volume_claim_name
+from kubeapp.manifests import application_to_kubernetes_manifests, persistent_volume_claim_name
+from kubeapp.models import Application
 
 from .helpers import (
     _container,
+    _example,
     _manifests,
     _pod_spec,
     _single_container_manifests,
@@ -314,3 +318,45 @@ class StorageManifestTests(unittest.TestCase):
             "PersistentVolume",
             [manifest["kind"] for manifest in manifests],
         )
+
+
+class IntentResourceManifestTests(unittest.TestCase):
+    def test_inline_environment_substitution(self):
+        for field, kind, data_key in (
+            ("configuration", "ConfigMap", "data"),
+            ("secrets", "Secret", "stringData"),
+        ):
+            with self.subTest(field=field):
+                application = Application.model_validate({
+                    "name": "worker",
+                    "containers": [{"name": "worker", "image": "worker:1"}],
+                    field: [{"name": "settings", "data": {"KEY": "prefix-${QA_VALUE}-${QA_VALUE}"}}],
+                })
+                with patch.dict(os.environ, {"QA_VALUE": "resolved"}, clear=True):
+                    manifests = application_to_kubernetes_manifests(application)
+                resource = next(m for m in manifests if m["kind"] == kind)
+                self.assertEqual(resource[data_key], {"KEY": "prefix-resolved-resolved"})
+                with patch.dict(os.environ, {}, clear=True):
+                    with self.assertRaisesRegex(ValueError, "Missing environment variable 'QA_VALUE'"):
+                        application_to_kubernetes_manifests(application)
+
+    def test_mount_read_only_semantics(self):
+        manifests = application_to_kubernetes_manifests(_example("medium/app.yaml"))
+        mounts = {m["mountPath"]: m for m in _container(manifests)["volumeMounts"]}
+        self.assertIs(mounts["/etc/catalog"]["readOnly"], True)
+        self.assertIs(mounts["/etc/catalog/secrets"]["readOnly"], True)
+        self.assertNotIn("readOnly", mounts["/data"])
+
+    def test_partial_resource_ranges(self):
+        for bound, rendered in (("min", "requests"), ("max", "limits")):
+            for resource, quantity in (("cpu", "250m"), ("memory", "128Mi")):
+                with self.subTest(bound=bound, resource=resource):
+                    application = Application.model_validate({
+                        "name": "worker",
+                        "containers": [{
+                            "name": "worker", "image": "worker:1",
+                            "resources": {resource: {bound: quantity}},
+                        }],
+                    })
+                    manifests = application_to_kubernetes_manifests(application)
+                    self.assertEqual(_container(manifests)["resources"], {rendered: {resource: quantity}})

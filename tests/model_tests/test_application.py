@@ -3,11 +3,37 @@ import unittest
 from pydantic import ValidationError
 
 from kubeapp.models import LegacyApplication as Application
+from kubeapp.models import Application as IntentApplication, IntentContainer
 
 from .helpers import _application, _application_data, _containers_application, _example
 
 
 class ApplicationModelTests(unittest.TestCase):
+    def test_service_cannot_target_init_container(self):
+        with self.assertRaisesRegex(ValidationError, "unknown container"):
+            IntentApplication.model_validate({
+                "name": "worker",
+                "containers": [{"name": "worker", "image": "worker:1"}],
+                "init": [{"name": "setup", "image": "setup:1"}],
+                "service": {"port": 80, "container": "setup"},
+            })
+
+    def test_legacy_application_identity_validation(self):
+        _application().validate_application()
+        for field, value in (("apiVersion", "kubeapp.dev/v2"), ("kind", "Deployment")):
+            with self.subTest(field=field):
+                data = _application_data()
+                data[field] = value
+                application = Application.model_validate(data)
+                with self.assertRaisesRegex(ValueError, f"Unsupported {field}"):
+                    application.validate_application()
+
+    def test_scaling_defaults_and_equal_bounds(self):
+        for scaling, expected in (({}, (1, 1)), ({"min_replicas": 2, "max_replicas": 2}, (2, 2))):
+            with self.subTest(scaling=scaling):
+                result = _application(scaling=scaling).spec.scaling
+                self.assertEqual((result.min_replicas, result.max_replicas), expected)
+
     def test_accepts_basic_example(self) -> None:
         application = _example("basic/app.yaml")
 
@@ -49,6 +75,11 @@ class ApplicationModelTests(unittest.TestCase):
 
 
 class ContainerModelTests(unittest.TestCase):
+    def test_image_length_boundary(self):
+        self.assertEqual(IntentContainer(name="app", image="a" * 512).image, "a" * 512)
+        with self.assertRaises(ValidationError):
+            IntentContainer(name="app", image="a" * 513)
+
     def test_accepts_legacy_single_container_application(self) -> None:
         application = _application()
 

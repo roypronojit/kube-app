@@ -642,11 +642,9 @@ kubeApp/
 │
 ├── tests/
 │   ├── README.md
-│   ├── test_cli.py
-│   ├── test_intent.py
-│   ├── test_models.py
-│   ├── test_manifests.py
-│   └── test_generators.py
+│   ├── cli_tests/
+│   ├── model_tests/
+│   └── manifest_tests/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md

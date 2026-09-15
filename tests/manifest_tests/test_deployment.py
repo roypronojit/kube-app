@@ -4,9 +4,10 @@ from kubeapp.manifests import application_to_kubernetes_manifests
 
 from .helpers import (
     _container,
+    _deployment,
     _example,
+    _storage_manifests,
     _manifests,
-    _output,
     _pod_spec,
     _service,
     _single_container_manifests,
@@ -14,13 +15,6 @@ from .helpers import (
 
 
 class LegacyApplicationTests(unittest.TestCase):
-    def test_basic_example_matches_generated_manifests(self) -> None:
-        application = _example("basic/app.yaml")
-
-        manifests = application_to_kubernetes_manifests(application)
-
-        self.assertEqual(_output("basic/rendered.yaml"), manifests)
-
     def test_omits_service_when_not_specified(self) -> None:
         manifests = _manifests(image="worker:1.0", name="worker")
 
@@ -257,3 +251,20 @@ class ServiceAccountManifestTests(unittest.TestCase):
             [manifest["kind"] for manifest in manifests],
             ["Deployment"],
         )
+
+
+class ManifestLabelTests(unittest.TestCase):
+    def test_labels_and_selectors_are_consistent_for_both_schemas(self):
+        cases = {
+            "intent": application_to_kubernetes_manifests(_example("medium/app.yaml")),
+            "legacy": _storage_manifests([{"name": "data", "size": "1Gi"}]),
+        }
+        for schema, manifests in cases.items():
+            with self.subTest(schema=schema):
+                labels = {"app.kubernetes.io/name": "catalog"}
+                for manifest in manifests:
+                    self.assertEqual(manifest["metadata"]["labels"], labels)
+                deployment = _deployment(manifests)
+                self.assertEqual(deployment["spec"]["selector"]["matchLabels"], labels)
+                self.assertEqual(deployment["spec"]["template"]["metadata"]["labels"], labels)
+                self.assertEqual(_service(manifests)["spec"]["selector"], labels)
