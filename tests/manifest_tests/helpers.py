@@ -11,6 +11,31 @@ from kubeapp.models import LegacyApplication as Application
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def inline_secret_application() -> IntentApplication:
+    """Focused configuration/Secret input with demonstration data only."""
+    return IntentApplication.model_validate({
+        "name": "catalog",
+        "configuration": [{"name": "catalog-config", "data": {"APP_ENV": "test"}}],
+        "secrets": [
+            {"name": "z-db", "data": {
+                "PASSWORD": "prefix-${HELM_TEST_PASSWORD}", "PORT": 5432,
+                "ENABLED": False, "MULTILINE": "first\nsecond\n",
+                "LITERAL": "{{ .Release.Name }}", "EMPTY": "",
+            }},
+            {"name": "a-api", "data": {"TOKEN": "demonstration-token"}},
+            {"name": "unused-secret", "data": {}},
+        ],
+        "containers": [{
+            "name": "catalog", "image": "catalog:1",
+            "configuration": [{"name": "catalog-config", "as": "environment"}],
+            "secrets": [
+                {"name": "a-api", "as": "environment"},
+                {"name": "z-db", "as": "environment"},
+            ],
+        }],
+    })
+
+
 def _example(name: str) -> Application:
     return IntentApplication.model_validate(
         yaml.safe_load((PROJECT_ROOT / "examples" / name).read_text(encoding="utf-8"))

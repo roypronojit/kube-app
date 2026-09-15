@@ -1,4 +1,4 @@
-"""Helm values for Basic capabilities and inline configuration environments.
+"""Helm values for Basic capabilities and inline configuration/Secret environments.
 
 The kube-app chart consumes these values; Helm execution is left to callers.
 """
@@ -57,32 +57,40 @@ class HelmRenderer(Renderer[dict[str, Any]]):
                 "port": application.service.port,
                 "targetPort": container.ports[0].name,
             }
-        if application.configuration:
-            values["configuration"] = [
-                {"name": resource.name, "data": _configuration_data(resource)}
-                for resource in application.configuration
-            ]
-        if container.configuration:
-            values["envFrom"] = [
-                {"configMapRef": {"name": reference.name}}
-                for reference in container.configuration
-            ]
+        for field in ("configuration", "secrets"):
+            if getattr(application, field):
+                values[field] = [
+                    {"name": resource.name, "data": _inline_resource_data(resource)}
+                    for resource in getattr(application, field)
+                ]
+        env_from = [
+            {"configMapRef": {"name": reference.name}}
+            for reference in container.configuration
+        ]
+        env_from += [
+            {"secretRef": {"name": reference.name}}
+            for reference in container.secrets
+        ]
+        if env_from:
+            values["envFrom"] = env_from
         return values
 
 
 def _validate_supported(application: Application) -> None:
     unsupported = []
-    for field in ("init", "secrets", "storage", "service_account"):
+    for field in ("init", "storage", "service_account"):
         if getattr(application, field):
             unsupported.append(field)
     if len(application.containers) != 1:
         unsupported.append("multiple containers")
     if any(resource.file is not None for resource in application.configuration):
         unsupported.append("file-based configuration")
+    if any(resource.file is not None for resource in application.secrets):
+        unsupported.append("file-based secrets")
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("environment", "secrets", "mounts", "health", "command", "args"):
+        for field in ("environment", "mounts", "health", "command", "args"):
             if getattr(container, field):
                 unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
@@ -96,13 +104,13 @@ def _validate_supported(application: Application) -> None:
             unsupported.append("service without a declared container port")
     if unsupported:
         raise NotImplementedError(
-            "Helm values support only Basic capabilities and inline configuration "
+            "Helm values support only Basic capabilities and inline configuration/secrets "
             "consumed as environment; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
 
 
-def _configuration_data(resource: DataResource) -> dict[str, str]:
+def _inline_resource_data(resource: DataResource) -> dict[str, str]:
     """Resolve inline substitutions without changing the validated model."""
     def substitute(match: re.Match) -> str:
         variable = match[1]

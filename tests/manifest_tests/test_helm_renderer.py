@@ -10,10 +10,52 @@ from kubeapp.models import Application
 from kubeapp.parser import load_application
 from kubeapp.renderers import HelmRenderer, Renderer
 
+from .helpers import inline_secret_application
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_inline_secret_values_substitution_and_consumption_order(self):
+        application = inline_secret_application()
+        before = application.model_dump()
+        with patch.dict(os.environ, {"HELM_TEST_PASSWORD": "example"}):
+            values = HelmRenderer().render(application)
+            self.assertEqual(HelmRenderer().render(application), values)
+        self.assertEqual(values["secrets"], [
+            {"name": "z-db", "data": {
+                "PASSWORD": "prefix-example", "PORT": "5432", "ENABLED": "false",
+                "MULTILINE": "first\nsecond\n", "LITERAL": "{{ .Release.Name }}", "EMPTY": "",
+            }},
+            {"name": "a-api", "data": {"TOKEN": "demonstration-token"}},
+            {"name": "unused-secret", "data": {}},
+        ])
+        self.assertEqual(values["envFrom"], [
+            {"configMapRef": {"name": "catalog-config"}},
+            {"secretRef": {"name": "a-api"}},
+            {"secretRef": {"name": "z-db"}},
+        ])
+        self.assertEqual(application.model_dump(), before)
+        application.containers[0].configuration = []
+        application.containers[0].secrets = []
+        with patch.dict(os.environ, {"HELM_TEST_PASSWORD": "example"}):
+            unconsumed = HelmRenderer().render(application)
+        self.assertEqual(unconsumed["secrets"], values["secrets"])
+        self.assertNotIn("envFrom", unconsumed)
+
+    def test_missing_secret_substitution_fails_without_exposing_data(self):
+        application = inline_secret_application()
+        before = application.model_dump()
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ValueError) as raised:
+                HelmRenderer().render(application)
+        self.assertEqual(
+            str(raised.exception),
+            "Missing environment variable 'HELM_TEST_PASSWORD' for resource 'z-db'",
+        )
+        self.assertNotIn("demonstration-token", str(raised.exception))
+        self.assertEqual(application.model_dump(), before)
+
     def test_inline_configuration_values_and_environment_references(self):
         application = Application.model_validate({
             "name": "catalog",
@@ -45,7 +87,7 @@ class HelmRendererTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing environment variable 'CONFIG_TEST_USER'"):
                 HelmRenderer().render(application)
 
-    def test_configuration_does_not_enable_files_mounts_or_secrets(self):
+    def test_inline_resources_do_not_enable_files_or_mounts(self):
         base = {
             "name": "catalog",
             "configuration": [{"name": "config", "data": {}}],
@@ -60,7 +102,7 @@ class HelmRendererTests(unittest.TestCase):
                 elif capability == "mounts":
                     data["containers"][0]["mounts"] = [{"configuration": "config", "path": "/etc/app"}]
                 else:
-                    data["secrets"] = [{"name": "private", "data": {"TOKEN": "value"}}]
+                    data["secrets"] = [{"name": "private", "file": "missing-secret.env"}]
                 with self.assertRaisesRegex(NotImplementedError, capability):
                     HelmRenderer().render(Application.model_validate(data))
 

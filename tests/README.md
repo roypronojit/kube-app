@@ -19,7 +19,8 @@ is on PATH and are skipped otherwise; all other tests run without Helm.
 
 | Module | Coverage |
 | --- | --- |
-| `manifest_tests/test_chart.py` | Basic end-to-end rendering and semantic equivalence, inline ConfigMaps and environment consumption, optional Service/ports, and service account creation (requires Helm) |
+| `manifest_tests/test_chart.py` | Basic end-to-end rendering and semantic equivalence, inline ConfigMaps/Secrets and environment consumption, optional Service/ports, and service account creation (requires Helm) |
+| `manifest_tests/test_helm_renderer.py` | Basic and inline resource values, substitution, declaration/consumption ordering, immutability, and unsupported capabilities |
 | `cli_tests/test_commands.py` | Validation/render commands, exit codes, output files, and failed-render diagnostics |
 | `cli_tests/test_parser.py` | YAML and filesystem input errors through the parser API |
 | `manifest_tests/test_intent.py` | Flat schema, defaults, resource wiring, file inputs, substitution, and example snapshots |

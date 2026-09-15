@@ -161,10 +161,12 @@ Existing manifest functions and legacy application support remain available.
 The model imports no renderer code.
 
 `HelmRenderer` implements `Renderer[dict[str, Any]]` and generates values for
-Basic capabilities plus inline configuration resources consumed as environment
-variables. `configuration` values define named ConfigMaps; `envFrom` values
-preserve container configuration reference order. File-based configuration,
-Secrets, storage, mounts, health probes, and other Medium/Advanced capabilities
+Basic capabilities plus inline configuration and Secret resources consumed as
+environment variables. `configuration` and `secrets` values preserve declaration
+order and Application-defined names. Secrets render as Opaque with `stringData`,
+using the same inline substitution as configuration. `envFrom` places configuration
+references before Secret references, preserving consumption order within each list.
+File-based configuration/Secrets, storage, mounts, health probes, and other Medium/Advanced capabilities
 remain unsupported and fail explicitly. Helm template
 execution in the application and CLI selection remain deferred. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors

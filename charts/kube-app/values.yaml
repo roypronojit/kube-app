@@ -21,6 +21,7 @@ service:
 resources: {}
 
 configuration: []
+secrets: []
 envFrom: []
 
 ingress:

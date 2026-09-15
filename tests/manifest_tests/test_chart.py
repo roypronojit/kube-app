@@ -1,17 +1,21 @@
 """Chart consumption of Basic values; requires Helm on PATH."""
 
 from copy import deepcopy
+import os
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
 
 from kubeapp.parser import load_application
 from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
+
+from .helpers import inline_secret_application
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,6 +42,41 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_inline_secrets_and_environment_consumption(self):
+        application = inline_secret_application()
+        with patch.dict(os.environ, {"HELM_TEST_PASSWORD": "example"}):
+            self.values = HelmRenderer().render(application)
+            expected = [
+                doc for doc in KubernetesRenderer().render(application)
+                if doc["kind"] == "Secret"
+            ]
+        documents = self.render_documents()
+        self.assertCountEqual(
+            [doc["kind"] for doc in documents],
+            ["Deployment", "ConfigMap", "Secret", "Secret", "Secret"],
+        )
+        secrets = [doc for doc in documents if doc["kind"] == "Secret"]
+        self.assertEqual(
+            [doc["metadata"]["name"] for doc in secrets],
+            ["z-db", "a-api", "unused-secret"],
+        )
+        for secret, reference in zip(secrets, expected):
+            with self.subTest(name=secret["metadata"]["name"]):
+                self.assertEqual(secret["apiVersion"], "v1")
+                self.assertEqual(secret["type"], "Opaque")
+                self.assertEqual(secret["stringData"], reference["stringData"])
+                self.assertNotIn("data", secret)
+                self.assertEqual(secret["metadata"]["labels"]["app.kubernetes.io/name"], "catalog")
+        configmap = next(doc for doc in documents if doc["kind"] == "ConfigMap")
+        self.assertEqual(configmap["data"], {"APP_ENV": "test"})
+        deployment = next(doc for doc in documents if doc["kind"] == "Deployment")
+        container = deployment["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["envFrom"], [
+            {"configMapRef": {"name": "catalog-config"}},
+            {"secretRef": {"name": "a-api"}},
+            {"secretRef": {"name": "z-db"}},
+        ])
 
     def test_configuration_maps_and_environment_consumption(self):
         application = Application.model_validate({

@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.8 - [0.2.0]
+
+- Added inline Secret values and a Secret chart template using Application-defined
+  names, type Opaque, and stringData with KubernetesRenderer's inline data semantics.
+- Added ordered secretRef environment consumption after configuration references,
+  preserving declaration and consumption order and environment substitution.
+- Shared inline data translation between configuration and Secrets. File-based
+  Secrets, storage, mounts, probes, and other unsupported capabilities still fail.
+- Added values and chart tests for multiple/unconsumed Secrets, string data,
+  substitution errors, ordering, and combined ConfigMap/Secret consumption.
+  Existing Basic and ConfigMap regressions remain covered.
+- Validation: 187 unittest tests passed; Helm lint passed.
+
 ## 2026.09.15.7 - [0.2.0]
 
 - Added inline configuration values, ConfigMap templates, and ordered environment
