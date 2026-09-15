@@ -16,6 +16,26 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class HelmRendererTests(unittest.TestCase):
+    def test_actual_medium_values_include_environment_and_service(self):
+        application = load_application(ROOT / "examples/medium/app.yaml")
+        values = HelmRenderer().render(application)
+        self.assertEqual(values["env"], [
+            {"name": "APP_ENV", "value": "production"},
+            {"name": "LOG_LEVEL", "value": "info"},
+        ])
+        self.assertEqual(values["service"], {
+            "enabled": True, "type": "LoadBalancer", "port": 8080, "targetPort": "http",
+        })
+
+    def test_explicit_numeric_target_port_is_preserved(self):
+        application = Application.model_validate({
+            "name": "catalog",
+            "containers": [{"name": "catalog", "image": "catalog:1",
+                            "ports": [{"name": "web", "port": 8080}]}],
+            "service": {"port": 80, "targetPort": 8080},
+        })
+        self.assertEqual(HelmRenderer().render(application)["service"]["targetPort"], 8080)
+
     def test_individual_health_probes_preserve_ports_and_model_defaults(self):
         for alias, field in (("ready", "readinessProbe"), ("live", "livenessProbe"), ("startup", "startupProbe")):
             for port in (8080, "http"):
@@ -230,18 +250,17 @@ class HelmRendererTests(unittest.TestCase):
                 application.containers[0].resources = None
                 self.assertEqual(HelmRenderer().render(application)["resources"], {})
 
-    def test_medium_and_advanced_fail_without_partial_output(self):
-        for example in ("medium", "advanced"):
+    def test_advanced_fails_without_partial_output(self):
+        for example in ("advanced",):
             with self.subTest(example=example):
                 application = load_application(ROOT / f"examples/{example}/app.yaml")
                 before = application.model_dump()
-                with self.assertRaisesRegex(NotImplementedError, "only Basic capabilities"):
+                with self.assertRaisesRegex(NotImplementedError, "unsupported:"):
                     HelmRenderer().render(application)
                 self.assertEqual(application.model_dump(), before)
 
     def test_unsupported_capabilities_are_not_silently_dropped(self):
         for field, value in (
-            ("environment", {"MODE": "test"}),
             ("command", ["run"]),
             ("args", ["--debug"]),
             ("ports", [{"name": "dns", "port": 5353, "protocol": "UDP"}]),

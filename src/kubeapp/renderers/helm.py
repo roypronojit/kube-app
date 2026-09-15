@@ -55,7 +55,7 @@ class HelmRenderer(Renderer[dict[str, Any]]):
                 "enabled": True,
                 "type": application.service.type,
                 "port": application.service.port,
-                "targetPort": container.ports[0].name,
+                "targetPort": application.service.target_port or container.ports[0].name,
             }
         for field in ("configuration", "secrets"):
             if getattr(application, field):
@@ -73,6 +73,11 @@ class HelmRenderer(Renderer[dict[str, Any]]):
         ]
         if env_from:
             values["envFrom"] = env_from
+        if container.environment:
+            values["env"] = [
+                {"name": name, "value": value}
+                for name, value in container.environment.items()
+            ]
         if application.storage is not None:
             values["storage"] = application.storage.model_dump(
                 by_alias=True, exclude_none=True
@@ -126,22 +131,21 @@ def _validate_supported(application: Application) -> None:
     for container in application.containers:
         if "@" in container.image:
             unsupported.append("digest image references")
-        for field in ("environment", "command", "args"):
+        for field in ("command", "args"):
             if getattr(container, field):
                 unsupported.append(field)
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
             unsupported.append("ports other than a single TCP port")
     if application.service:
-        if application.service.type != "ClusterIP":
-            unsupported.append("service.type other than ClusterIP")
-        if application.service.container is not None or application.service.target_port is not None:
-            unsupported.append("explicit service container/targetPort")
+        if application.service.type not in ("ClusterIP", "LoadBalancer"):
+            unsupported.append("service.type other than ClusterIP/LoadBalancer")
+        if application.service.container is not None:
+            unsupported.append("explicit service container")
         if not application.containers[0].ports:
             unsupported.append("service without a declared container port")
     if unsupported:
         raise NotImplementedError(
-            "Helm values support only Basic capabilities and inline configuration/secrets "
-            "consumed as environment, plus storage claims, resource mounts, and HTTP probes; unsupported: "
+            "Helm values support Basic and Medium capabilities; unsupported: "
             + ", ".join(dict.fromkeys(unsupported))
         )
 

@@ -23,6 +23,10 @@ spec:
         - name: {{ .Values.containerName }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- range $name := list "readinessProbe" "livenessProbe" "startupProbe" }}
           {{- with index $.Values $name }}
           {{ $name }}:

@@ -1,6 +1,7 @@
 """Chart consumption of Basic values; requires Helm on PATH."""
 
 from copy import deepcopy
+import base64
 import os
 import shutil
 import subprocess
@@ -42,6 +43,39 @@ class BasicChartTests(unittest.TestCase):
 
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
+
+    def test_actual_medium_end_to_end_and_semantic_equivalence(self):
+        source = ROOT / "examples/medium/app.yaml"
+        application = load_application(source)
+        before = application.model_dump()
+        self.values = HelmRenderer().render(application, source.parent)
+        helm = self.render_documents()  # Checks exit status and parses all YAML.
+        self.assertCountEqual(
+            [doc["kind"] for doc in helm],
+            ["Deployment", "Service", "ConfigMap", "Secret", "PersistentVolumeClaim"],
+        )
+        kubernetes = KubernetesRenderer().render(application, source.parent)
+
+        def semantic_resource(document):
+            result = deepcopy(document)
+            # Ignore only descriptive resource labels, never selectors/pod labels.
+            for key in ("helm.sh/chart", "app.kubernetes.io/managed-by", "app.kubernetes.io/version"):
+                result["metadata"]["labels"].pop(key, None)
+            if result["kind"] == "Deployment":
+                result["spec"]["template"]["spec"].setdefault("serviceAccountName", "default")
+            if result["kind"] == "Secret":
+                data = {key: base64.b64decode(value, validate=True) for key, value in result.pop("data", {}).items()}
+                data.update({key: value.encode("utf-8") for key, value in result.pop("stringData", {}).items()})
+                result["data"] = data
+            return result
+
+        expected = {(doc["kind"], doc["metadata"]["name"]): semantic_resource(doc) for doc in kubernetes}
+        actual = {(doc["kind"], doc["metadata"]["name"]): semantic_resource(doc) for doc in helm}
+        self.assertEqual(set(actual), set(expected))
+        for identity in expected:
+            with self.subTest(resource=identity):
+                self.assertEqual(actual[identity], expected[identity])
+        self.assertEqual(application.model_dump(), before)
 
     def test_http_probes_match_kubernetes_probe_semantics(self):
         probes = {

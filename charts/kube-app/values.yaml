@@ -23,6 +23,7 @@ resources: {}
 configuration: []
 secrets: []
 envFrom: []
+env: []
 storage: null
 volumes: []
 volumeMounts: []

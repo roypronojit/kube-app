@@ -7,6 +7,20 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.15.12 - [0.2.0]
+
+- Completed rendering of the unchanged Medium example by adding literal env
+  values/Deployment output, LoadBalancer support, and explicit Service targetPort
+  translation. Existing schema, KubernetesRenderer, and CLI remain unchanged.
+- Added actual Medium end-to-end and semantic equivalence coverage across all
+  five resources, including identity/selectors, container settings, resource data,
+  environment ordering, PVCs, mounts, probes, Service routing, and service accounts.
+- Comparisons ignore only descriptive Helm resource labels, normalize the default
+  service account and Secret data encoding, and retain runtime-relevant ordering.
+  Advanced features and file-based configuration/Secrets remain unsupported.
+- Validation: 197 unittest tests passed; Helm lint passed; Medium helm template
+  exited successfully and produced Secret, ConfigMap, PVC, Service, and Deployment YAML.
+
 ## 2026.09.15.11 - [0.2.0]
 
 - Added Helm HTTP readiness, liveness, and startup probe values and conditional

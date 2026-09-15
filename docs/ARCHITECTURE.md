@@ -161,7 +161,7 @@ Existing manifest functions and legacy application support remain available.
 The model imports no renderer code.
 
 `HelmRenderer` implements `Renderer[dict[str, Any]]` and generates values for
-Basic capabilities plus inline configuration and Secret resources consumed as
+the Basic and Medium examples, including inline configuration and Secret resources consumed as
 environment variables. `configuration` and `secrets` values preserve declaration
 order and Application-defined names. Secrets render as Opaque with `stringData`,
 using the same inline substitution as configuration. `envFrom` places configuration
@@ -173,6 +173,9 @@ default read-write access. Mount order is preserved, and repeated sources share
 one volume identified by resource kind and name.
 HTTP health intent maps to readinessProbe, livenessProbe, and startupProbe values.
 Only declared probes render; numeric/named ports and model timing defaults are preserved.
+Literal environment entries render as ordered `env` values. ClusterIP/LoadBalancer
+Services preserve explicit numeric or named targetPort values. The actual Medium
+example is tested end-to-end and compared semantically with KubernetesRenderer.
 File-based configuration/Secrets and other unsupported Medium/Advanced capabilities
 remain unsupported and fail explicitly. Helm template
 execution in the application and CLI selection remain deferred. The chart consumes
