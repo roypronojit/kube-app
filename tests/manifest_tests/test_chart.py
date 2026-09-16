@@ -1,7 +1,5 @@
 """Chart consumption of Basic values; requires Helm on PATH."""
 
-from copy import deepcopy
-import base64
 import os
 import shutil
 import subprocess
@@ -13,6 +11,7 @@ from unittest.mock import patch
 import yaml
 
 from kubeapp.parser import load_application
+from tests.semantic_helpers import assert_semantically_equal
 from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 
@@ -201,25 +200,7 @@ class BasicChartTests(unittest.TestCase):
         )
         kubernetes = KubernetesRenderer().render(application, source.parent)
 
-        def semantic_resource(document):
-            result = deepcopy(document)
-            # Ignore only descriptive resource labels, never selectors/pod labels.
-            for key in ("helm.sh/chart", "app.kubernetes.io/managed-by", "app.kubernetes.io/version"):
-                result["metadata"]["labels"].pop(key, None)
-            if result["kind"] == "Deployment":
-                result["spec"]["template"]["spec"].setdefault("serviceAccountName", "default")
-            if result["kind"] == "Secret":
-                data = {key: base64.b64decode(value, validate=True) for key, value in result.pop("data", {}).items()}
-                data.update({key: value.encode("utf-8") for key, value in result.pop("stringData", {}).items()})
-                result["data"] = data
-            return result
-
-        expected = {(doc["kind"], doc["metadata"]["name"]): semantic_resource(doc) for doc in kubernetes}
-        actual = {(doc["kind"], doc["metadata"]["name"]): semantic_resource(doc) for doc in helm}
-        self.assertEqual(set(actual), set(expected))
-        for identity in expected:
-            with self.subTest(resource=identity):
-                self.assertEqual(actual[identity], expected[identity])
+        assert_semantically_equal(self, helm, kubernetes)
         self.assertEqual(application.model_dump(), before)
 
     def test_actual_advanced_complete_semantic_equivalence(self):
@@ -231,30 +212,7 @@ class BasicChartTests(unittest.TestCase):
             self.values = HelmRenderer().render(application, source.parent)
         helm = self.render_documents()
 
-        def semantic_resource(document):
-            result = deepcopy(document)
-            # Only resource metadata labels are descriptive; pod labels and
-            # selectors, and all ordered lists, must compare exactly.
-            for key in ("helm.sh/chart", "app.kubernetes.io/managed-by", "app.kubernetes.io/version"):
-                result["metadata"]["labels"].pop(key, None)
-            if result["kind"] == "Deployment":
-                result["spec"]["template"]["spec"].setdefault("serviceAccountName", "default")
-            if result["kind"] == "Secret":
-                data = {key: base64.b64decode(value, validate=True) for key, value in result.pop("data", {}).items()}
-                data.update({key: value.encode("utf-8") for key, value in result.pop("stringData", {}).items()})
-                result["data"] = data
-            return result
-
-        def identity(document):
-            return document["kind"], document["metadata"]["name"]
-
-        # Check multiplicity before indexing so duplicate resources cannot hide.
-        self.assertCountEqual([identity(doc) for doc in helm], [identity(doc) for doc in kubernetes])
-        expected = {identity(doc): semantic_resource(doc) for doc in kubernetes}
-        self.assertEqual(len(expected), len(kubernetes))
-        for document in helm:
-            with self.subTest(resource=identity(document)):
-                self.assertEqual(semantic_resource(document), expected[identity(document)])
+        assert_semantically_equal(self, helm, kubernetes)
         self.assertEqual(application.model_dump(), before)
 
     def test_init_container_without_resource_requirements_omits_resources(self):
@@ -448,32 +406,7 @@ class BasicChartTests(unittest.TestCase):
     def test_basic_renderers_are_semantically_equivalent(self):
         kubernetes = KubernetesRenderer().render(self.application)
         helm = self.render_documents()
-        self.assertCountEqual(
-            [doc["kind"] for doc in helm], [doc["kind"] for doc in kubernetes]
-        )
-        expected = {doc["kind"]: doc for doc in kubernetes}
-        for document in helm:
-            actual = deepcopy(document)
-            reference = deepcopy(expected[actual["kind"]])
-            # Only descriptive labels on resource metadata are ignored. Pod
-            # labels and every selector remain intact and must match exactly.
-            for key in (
-                "helm.sh/chart", "app.kubernetes.io/managed-by",
-                "app.kubernetes.io/version",
-            ):
-                actual["metadata"]["labels"].pop(key, None)
-            if actual["kind"] == "Deployment":
-                # Kubernetes uses the namespace's default service account
-                # when serviceAccountName is omitted.
-                for resource in (actual, reference):
-                    resource["spec"]["template"]["spec"].setdefault(
-                        "serviceAccountName", "default"
-                    )
-            for field in ("apiVersion", "metadata", "spec"):
-                with self.subTest(kind=actual["kind"], field=field):
-                    self.assertEqual(actual[field], reference[field])
-            with self.subTest(kind=actual["kind"], field="resource fields"):
-                self.assertEqual(set(actual), set(reference))
+        assert_semantically_equal(self, helm, kubernetes)
 
     def test_basic_values_are_consumed(self):
         for port_name in ("http", "web"):

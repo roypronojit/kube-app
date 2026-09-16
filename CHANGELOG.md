@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.7 - [0.2.0]
+
+- Step 22: added end-to-end equivalence tests invoking the installed kube-app CLI
+  for unchanged Basic, Medium, and Advanced examples through both renderers.
+- Extracted the established semantic normalization into a shared test helper used
+  by renderer and CLI tests; resource multiplicity and ordered lists remain checked.
+- Verified stdout and --output/-o files, exact default/alias output, and execution
+  outside the repository/application directory. Validation, render, and missing-Helm
+  failures preserve existing files and do not create partial output files.
+- Validation: all 223 unittest tests passed; Helm lint and git diff --check passed.
+  No CLI features, schema, rendering semantics, or examples changed.
+
 ## 2026.09.16.6 - [0.2.0]
 
 - Step 21: added render --renderer/-r selection. kubernetes, k8s, and k normalize
