@@ -7,6 +7,21 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.5 - [0.2.0]
+
+- Step 20: added complete semantic equivalence coverage for the unchanged Advanced
+  example through KubernetesRenderer and HelmRenderer + helm template. Compares every
+  resource field, preserving container/reference ordering, pod labels and selectors,
+  resource requirements, storage, probes, service account, and Service routing.
+- Normalizes only descriptive Helm resource labels, document ordering, equivalent
+  Secret encoding, and omitted default service accounts; checks resource multiplicity.
+- Fixed the Helm init container template to omit empty resources, matching
+  KubernetesRenderer. Added a focused regression test; nonempty requirements remain covered.
+- Validation: all 216 unittest tests passed. Helm lint passed with default values and
+  Basic/Medium/Advanced values; helm template succeeded for all three examples.
+- No remaining Advanced semantic differences after the allowed normalization.
+  Schema, KubernetesRenderer, CLI, and examples are unchanged.
+
 ## 2026.09.16.4 - [0.2.0]
 
 - Step 19: matched KubernetesRenderer Service targeting when the selected container

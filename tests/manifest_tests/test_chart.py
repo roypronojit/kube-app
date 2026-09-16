@@ -222,6 +222,54 @@ class BasicChartTests(unittest.TestCase):
                 self.assertEqual(actual[identity], expected[identity])
         self.assertEqual(application.model_dump(), before)
 
+    def test_actual_advanced_complete_semantic_equivalence(self):
+        source = ROOT / "examples/advanced/app.yaml"
+        application = load_application(source)
+        before = application.model_dump()
+        with patch.dict(os.environ, {"CATALOG_API_KEY": "example-api-key"}):
+            kubernetes = KubernetesRenderer().render(application, source.parent)
+            self.values = HelmRenderer().render(application, source.parent)
+        helm = self.render_documents()
+
+        def semantic_resource(document):
+            result = deepcopy(document)
+            # Only resource metadata labels are descriptive; pod labels and
+            # selectors, and all ordered lists, must compare exactly.
+            for key in ("helm.sh/chart", "app.kubernetes.io/managed-by", "app.kubernetes.io/version"):
+                result["metadata"]["labels"].pop(key, None)
+            if result["kind"] == "Deployment":
+                result["spec"]["template"]["spec"].setdefault("serviceAccountName", "default")
+            if result["kind"] == "Secret":
+                data = {key: base64.b64decode(value, validate=True) for key, value in result.pop("data", {}).items()}
+                data.update({key: value.encode("utf-8") for key, value in result.pop("stringData", {}).items()})
+                result["data"] = data
+            return result
+
+        def identity(document):
+            return document["kind"], document["metadata"]["name"]
+
+        # Check multiplicity before indexing so duplicate resources cannot hide.
+        self.assertCountEqual([identity(doc) for doc in helm], [identity(doc) for doc in kubernetes])
+        expected = {identity(doc): semantic_resource(doc) for doc in kubernetes}
+        self.assertEqual(len(expected), len(kubernetes))
+        for document in helm:
+            with self.subTest(resource=identity(document)):
+                self.assertEqual(semantic_resource(document), expected[identity(document)])
+        self.assertEqual(application.model_dump(), before)
+
+    def test_init_container_without_resource_requirements_omits_resources(self):
+        application = Application.model_validate({
+            "name": "catalog",
+            "containers": [{"name": "catalog", "image": "catalog:1"}],
+            "init": [{"name": "prepare", "image": "prepare:1"}],
+        })
+        self.values = HelmRenderer().render(application)
+        pod = self.render_chart()["Deployment"]["spec"]["template"]["spec"]
+        expected = next(doc for doc in KubernetesRenderer().render(application)
+                        if doc["kind"] == "Deployment")["spec"]["template"]["spec"]
+        self.assertNotIn("resources", pod["initContainers"][0])
+        self.assertEqual(pod["initContainers"], expected["initContainers"])
+
     def test_http_probes_match_kubernetes_probe_semantics(self):
         probes = {
             "ready": {"path": "/ready", "port": "http", "successThreshold": 2},
