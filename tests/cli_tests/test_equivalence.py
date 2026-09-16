@@ -38,7 +38,7 @@ class CliEquivalenceTests(unittest.TestCase):
             outputs = {}
             for alias in ("kubernetes", "k8s", "k", "helm", "h", None):
                 with self.subTest(example=example, alias=alias):
-                    arguments = ["-r", alias] if alias else []
+                    arguments = ["-f", alias] if alias else []
                     result = self.invoke(source, *arguments)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(result.stderr, "")
@@ -84,7 +84,7 @@ class CliEquivalenceTests(unittest.TestCase):
                     destination = self.cwd / f"failure-{index}-{existing}.yaml"
                     if existing:
                         destination.write_bytes(b"existing output\n")
-                    result = self.invoke(source, "-r", renderer, "-o", str(destination), environment=env)
+                    result = self.invoke(source, "-f", renderer, "-o", str(destination), environment=env)
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertEqual(result.stdout, "")
                     self.assertIn(message, result.stderr)

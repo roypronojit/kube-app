@@ -1,0 +1,228 @@
+---
+# Source: kube-app/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "catalog-db"
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  DB_HOST: postgres
+  DB_NAME: catalog
+  DB_PASSWORD: change-me
+  DB_PORT: "5432"
+  DB_USER: catalog
+---
+# Source: kube-app/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "catalog-api"
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  API_KEY: test-api-key
+---
+# Source: kube-app/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-config
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  APP_ENV: production
+  LOG_LEVEL: info
+---
+# Source: kube-app/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-feature-flags
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  FEATURE_NEW_CHECKOUT: "true"
+  FEATURE_RECOMMENDATIONS: "false"
+---
+# Source: kube-app/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "catalog-data"
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: "fast"
+  resources:
+    requests:
+      storage: "50Gi"
+---
+# Source: kube-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: catalog
+---
+# Source: kube-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  labels:
+    helm.sh/chart: kube-app-0.2.0
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+    spec:
+      serviceAccountName: "catalog"
+      volumes:
+        - name: volume-0
+          persistentVolumeClaim:
+            claimName: catalog-data
+        - configMap:
+            name: catalog-config
+          name: volume-1
+        - name: volume-2
+          secret:
+            secretName: catalog-db
+      initContainers:
+        - name: database-migration
+          image: "registry.example.com/catalog-migrations:1.4.2"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/migrate
+          args:
+            - --database
+            - catalog
+          envFrom:
+            - secretRef:
+                name: catalog-db
+          volumeMounts:
+            - mountPath: /data
+              name: volume-0
+      containers:
+        - name: catalog
+          image: "registry.example.com/catalog:1.4.2"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/catalog
+          args:
+            - --port
+            - "8080"
+          env:
+            - name: APP_ENV
+              value: production
+            - name: LOG_LEVEL
+              value: info
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health/startup
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /etc/catalog
+              name: volume-1
+              readOnly: true
+            - mountPath: /etc/catalog/secrets
+              name: volume-2
+              readOnly: true
+            - mountPath: /data
+              name: volume-0
+          envFrom:
+            - configMapRef:
+                name: catalog-config
+            - configMapRef:
+                name: catalog-feature-flags
+            - secretRef:
+                name: catalog-db
+            - secretRef:
+                name: catalog-api
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+        - name: metrics
+          image: "registry.example.com/catalog-metrics:1.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: METRICS_PORT
+              value: "9090"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi

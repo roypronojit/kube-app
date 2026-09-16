@@ -4,19 +4,21 @@ import sys
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
+from kubeapp.models import Application
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
 
 
-def _renderer_name(value: str) -> str:
+def _format_name(value: str) -> str:
     aliases = {"kubernetes": "kubernetes", "k8s": "kubernetes", "k": "kubernetes",
                "helm": "helm", "h": "helm"}
     try:
         return aliases[value]
     except KeyError:
         raise argparse.ArgumentTypeError(
-            "renderer must be kubernetes (k8s, k) or helm (h)"
+            "format must be kubernetes (k8s, k) or helm (h)"
         ) from None
 
 
@@ -67,10 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     render_parser.add_argument("-o", "--output", help="Write manifests to this file")
     render_parser.add_argument(
-        "-r", "--renderer", type=_renderer_name, default="kubernetes",
-        metavar="RENDERER",
+        "-f", "--format", dest="renderer", type=_format_name, default="kubernetes",
+        metavar="FORMAT",
         help="Backend: kubernetes | k8s | k (default: kubernetes), or helm | h (requires Helm on PATH)",
     )
+    render_parser.add_argument("-n", "--name", help="Override the application name")
 
     return parser
 
@@ -82,6 +85,19 @@ def main() -> int:
     if args.command in {"validate", "render"}:
         try:
             application = load_application(args.file)
+            if args.command == "render" and args.name is not None:
+                data = application.model_dump(by_alias=True)
+                data["name"] = args.name
+                try:
+                    application = Application.model_validate(data)
+                except ValidationError as exc:
+                    raise ApplicationParseError(
+                        "Invalid application definition:\n"
+                        + "\n".join(
+                            f"{'.'.join(map(str, error['loc']))}: {error['msg']}"
+                            for error in exc.errors(include_input=False)
+                        )
+                    ) from exc
 
         except ApplicationParseError as exc:
             print(f"Validation failed:\n{exc}", file=sys.stderr)

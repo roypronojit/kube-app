@@ -6,6 +6,23 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.10 - [0.2.0]
+
+- CLI architecture Step 1: replaced render --renderer/-r with --format/-f.
+  The old options are rejected. kubernetes/k8s/k and helm/h remain supported;
+  Kubernetes remains the default.
+- Added render --name/-n to override Application.name through a newly validated
+  Application without mutating the parsed model. Omission preserves the input name.
+  Derived resource names, labels, selectors, and PVC references use the override;
+  explicitly named ConfigMaps, Secrets, containers, init containers, and service
+  accounts retain their names.
+- Preserved --output/-o behavior, --help/-h, and current Helm rendering behavior.
+  No chart input or Helm values-file output was added. Examples, chart, schema,
+  and package/chart versions were unchanged.
+- Validation: 9 focused CLI tests passed using the existing virtual environment
+  through WSL; scoped git diff --check passed. The full suite and example-based
+  tests were not run for this step.
+
 ## 2026.09.16.9 - [0.2.0]
 
 - Added Helm as an alternative rendering backend while keeping Kubernetes the
