@@ -107,7 +107,7 @@ class ValueMappingTests(unittest.TestCase):
         self.assertNotIn("resolved-private-token", repr(result))
         self.assertNotIn("resolved-private-token", repr(secret_notes))
 
-    def test_cli_keeps_values_and_does_not_present_diagnostics(self):
+    def test_cli_keeps_values_with_diagnostics(self):
         self.values_file({"deployment": {"replicas": 1}})
         before = self.application.model_dump()
         output, errors = io.StringIO(), io.StringIO()
@@ -119,7 +119,7 @@ class ValueMappingTests(unittest.TestCase):
             expected = HelmRenderer().render(self.application)
             self.assertEqual(main(), 0)
             compare.assert_called_once()
-        self.assertEqual(errors.getvalue(), "")
+        self.assertIn("WARNING:", errors.getvalue())
         self.assertEqual(yaml.safe_load(output.getvalue()), expected)
         self.assertEqual(self.application.model_dump(), before)
 

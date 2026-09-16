@@ -115,7 +115,7 @@ class RenderContractTests(unittest.TestCase):
                     "subprocess.run", side_effect=AssertionError("No external command expected")
                 ) as helm:
                     result, output, errors = self.invoke(*([option, alias] if alias else []))
-                    self.assertEqual((result, errors), (0, ""))
+                    self.assertEqual(result, 0, errors)
                     if alias in ("helm", "h"):
                         self.assertEqual(yaml.safe_load(output)["name"], "original")
                     else:
@@ -142,7 +142,7 @@ class RenderContractTests(unittest.TestCase):
                 "kubeapp.cli.KubernetesRenderer.render", wraps=KubernetesRenderer().render
             ) as render:
                 result, output, errors = self.invoke(option, "replacement")
-            self.assertEqual((result, errors), (0, ""))
+            self.assertEqual(result, 0, errors)
             self.assertIsNot(render.call_args.args[0], original)
             self.assertEqual(original.model_dump(), before)
             documents = list(yaml.safe_load_all(output))
@@ -167,7 +167,7 @@ class RenderContractTests(unittest.TestCase):
 
     def test_name_reaches_helm_values(self):
         result, output, errors = self.invoke("-f", "helm", "-n", "replacement")
-        self.assertEqual((result, errors), (0, ""))
+        self.assertEqual(result, 0, errors)
         values = yaml.safe_load(output)
         self.assertEqual(values["name"], "replacement")
         self.assertEqual(values["containerName"], "web")
@@ -193,7 +193,7 @@ class RenderContractTests(unittest.TestCase):
         for backend in ("kubernetes", "helm"):
             with self.subTest(backend=backend):
                 result, output, errors = self.invoke("-f", backend)
-                self.assertEqual((result, errors), (0, ""))
+                self.assertEqual(result, 0, errors)
                 if backend == "helm":
                     self.assertEqual(yaml.safe_load(output)["name"], "original")
                 else:
@@ -201,10 +201,10 @@ class RenderContractTests(unittest.TestCase):
                     self.assertEqual(deployment["metadata"]["name"], "original")
                 for option in ("-o", "--output"):
                     destination = self.base / backend / option / "output.yaml"
-                    self.assertEqual(self.invoke("-f", backend, option, str(destination)), (0, "", ""))
+                    self.assertEqual(self.invoke("-f", backend, option, str(destination)), (0, "", errors))
                     self.assertEqual(destination.read_text(encoding="utf-8"), output)
                     destination.write_text("existing", encoding="utf-8")
-                    self.assertEqual(self.invoke("-f", backend, option, str(destination)), (0, "", ""))
+                    self.assertEqual(self.invoke("-f", backend, option, str(destination)), (0, "", errors))
                     self.assertEqual(destination.read_text(encoding="utf-8"), output)
 
 

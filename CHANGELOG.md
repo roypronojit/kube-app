@@ -6,6 +6,25 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.14 - [0.2.0]
+
+- Helm architecture Step 5: surfaced mapping and capability diagnostics on stderr,
+  keeping generated values YAML exclusively on stdout or in --output/-o files.
+- Undeclared value paths and missing application capabilities emit WARNING messages;
+  unknown support emits NOTE messages. Supported mappings remain silent, equivalent
+  diagnostics are deduplicated, and redundant descendant messages are suppressed.
+- Warnings and notes remain non-fatal and do not filter or remap generated values.
+  Success exits 0, validation/render failures exit 1, and CLI usage errors exit 2.
+  Diagnostics do not include resolved Secret values or claim resource creation.
+- File output now uses a temporary file and atomic replacement to preserve existing
+  output on write failure. Kubernetes output remains free of Helm diagnostics.
+- Updated CLI help for formats, name override, required Helm chart input, output,
+  and help options; clarified that Helm values generation needs no Helm executable.
+- Validation: 40 focused tests passed using temporary fixtures through WSL;
+  scoped tracked-file whitespace checks passed. No full suite or example-based
+  tests were run. Examples, charts, and versions were unchanged. No strict or
+  verbose mode was added.
+
 ## 2026.09.16.13 - [0.2.0]
 
 - Helm architecture Step 4: added a declared values contract combining nested

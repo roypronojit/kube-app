@@ -130,7 +130,7 @@ kind: 'PersistentVolumeClaim'
     def test_chart_options_inspect_without_changing_helm_output(self):
         for option in ("-c", "--chart"):
             with self.subTest(option=option), patch("kubeapp.cli.inspect_chart", wraps=inspect_chart) as inspection, patch(
-                "kubeapp.cli._render_helm", return_value="existing Helm output\n"
+                "kubeapp.cli._render_helm", return_value=("existing Helm output\n", ())
             ) as render:
                 self.assertEqual(self.invoke("-f", "h", option, str(self.chart)), (0, "existing Helm output\n", ""))
                 inspection.assert_called_once_with(str(self.chart), self.application)

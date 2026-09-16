@@ -1,5 +1,7 @@
 import argparse
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -10,6 +12,7 @@ from kubeapp.chart_inspection import inspect_chart
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
 from kubeapp.value_mapping import compare_values
+from kubeapp.diagnostics import helm_messages
 
 
 def _format_name(value: str) -> str:
@@ -23,10 +26,24 @@ def _format_name(value: str) -> str:
         ) from None
 
 
-def _render_helm(application, base_dir: Path, inspection) -> str:
+def _render_helm(application, base_dir: Path, inspection) -> tuple[str, tuple[str, ...]]:
     values = HelmRenderer().render(application, base_dir)
     mapping = compare_values(values, inspection)
-    return yaml.safe_dump(mapping.values, sort_keys=False)
+    return yaml.safe_dump(mapping.values, sort_keys=False), helm_messages(mapping)
+
+
+def _write_output(output: Path, rendered: str) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=output.parent,
+                                         prefix=f".{output.name}.", delete=False) as file:
+            temporary = Path(file.name)
+            file.write(rendered)
+        os.replace(temporary, output)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,7 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser = subparsers.add_parser(
         "render",
         help="Generate Kubernetes manifests or Helm values from an application definition",
-        description="Render Kubernetes manifests or Helm values YAML to stdout or an output file.",
+        description=("Render Kubernetes manifests (default) or Helm values YAML to stdout or an output file. "
+                     "--chart is required for Helm. A Helm executable is not required for generation. "
+                     "Helm diagnostics go to stderr."),
     )
 
     render_parser.add_argument(
@@ -70,7 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser.add_argument("-n", "--name", help="Override the application name")
     render_parser.add_argument(
         "-c", "--chart", metavar="PATH",
-        help="External chart to inspect (required for Helm; not used for rendering yet)",
+        help="External chart contract to inspect (required for Helm values generation)",
     )
 
     return parser
@@ -112,19 +131,20 @@ def main() -> int:
 
         try:
             base_dir = Path(args.file).resolve().parent
+            messages = ()
             if args.renderer == "helm":
-                # Inspection returns structured notes; presentation is deferred.
                 inspection = inspect_chart(args.chart, application)
-                rendered = _render_helm(application, base_dir, inspection)
+                rendered, messages = _render_helm(application, base_dir, inspection)
             else:
                 manifests = KubernetesRenderer().render(application, base_dir)
                 rendered = yaml.safe_dump_all(manifests, sort_keys=False)
             if args.output:
                 output = Path(args.output)
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_text(rendered, encoding="utf-8")
+                _write_output(output, rendered)
             else:
                 print(rendered, end="")
+            for message in messages:
+                print(message, file=sys.stderr)
 
         except (ValueError, OSError, NotImplementedError) as exc:
             print(f"Render failed:\n{exc}", file=sys.stderr)

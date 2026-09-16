@@ -52,7 +52,7 @@ class CliOutputTests(unittest.TestCase):
         for alias in ("helm", "h"):
             with self.subTest(alias=alias):
                 result = self.invoke(alias)
-                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                self.assertEqual(result.returncode, 0, result.stderr)
                 documents = list(yaml.safe_load_all(result.stdout))
                 self.assertEqual(len(documents), 1)
                 values = documents[0]
@@ -74,7 +74,7 @@ class CliOutputTests(unittest.TestCase):
             self.assertEqual(yaml.safe_load(result.stdout)["name"], "replacement")
             destination = self.base / "output" / "values.yaml"
             written = self.invoke("h", "--name", "replacement", option, str(destination))
-            self.assertEqual((written.returncode, written.stdout, written.stderr), (0, "", ""))
+            self.assertEqual((written.returncode, written.stdout), (0, ""))
             self.assertEqual(destination.read_text(encoding="utf-8"), result.stdout)
 
     def test_no_external_commands_or_application_mutation(self):
@@ -123,5 +123,5 @@ class CliOutputTests(unittest.TestCase):
             expected = KubernetesRenderer().render(load_application(self.source), self.app_dir)
         for alias in ("kubernetes", "k8s", "k"):
             result = self.invoke(alias)
-            self.assertEqual((result.returncode, result.stderr), (0, ""))
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(list(yaml.safe_load_all(result.stdout)), expected)
