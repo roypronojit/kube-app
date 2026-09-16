@@ -1,5 +1,4 @@
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
@@ -25,15 +24,7 @@ def _format_name(value: str) -> str:
 
 def _render_helm(application, base_dir: Path) -> str:
     values = HelmRenderer().render(application, base_dir)
-    chart = Path(__file__).resolve().parents[2] / "charts/kube-app"
-    result = subprocess.run(
-        ["helm", "template", "kube-app", str(chart), "-f", "-"],
-        input=yaml.safe_dump(values, sort_keys=False),
-        capture_output=True, text=True, timeout=30,
-    )
-    if result.returncode:
-        raise ValueError(result.stderr.strip() or "helm template failed")
-    return result.stdout
+    return yaml.safe_dump(values, sort_keys=False)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,8 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     render_parser = subparsers.add_parser(
         "render",
-        help="Generate Kubernetes manifests from an application definition",
-        description="Render final Kubernetes YAML to stdout or an output file.",
+        help="Generate Kubernetes manifests or Helm values from an application definition",
+        description="Render Kubernetes manifests or Helm values YAML to stdout or an output file.",
     )
 
     render_parser.add_argument(
@@ -68,11 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the application YAML file",
     )
 
-    render_parser.add_argument("-o", "--output", help="Write manifests to this file")
+    render_parser.add_argument("-o", "--output", help="Write generated YAML to this file")
     render_parser.add_argument(
         "-f", "--format", dest="renderer", type=_format_name, default="kubernetes",
         metavar="FORMAT",
-        help="Backend: kubernetes | k8s | k (default: kubernetes), or helm | h (requires Helm on PATH)",
+        help="Format: kubernetes | k8s | k (default: kubernetes), or helm | h (Helm values)",
     )
     render_parser.add_argument("-n", "--name", help="Override the application name")
     render_parser.add_argument(
@@ -133,7 +124,7 @@ def main() -> int:
             else:
                 print(rendered, end="")
 
-        except (ValueError, OSError, NotImplementedError, subprocess.SubprocessError) as exc:
+        except (ValueError, OSError, NotImplementedError) as exc:
             print(f"Render failed:\n{exc}", file=sys.stderr)
             return 1
 

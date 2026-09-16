@@ -6,6 +6,37 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.12 - [0.2.0]
+
+- Helm architecture Step 3: Helm format now emits Helm values YAML directly from
+  the existing Application-to-values translator, to stdout or --output/-o.
+  Removed the public CLI's helm template stage and Helm executable requirement;
+  Kubernetes format continues to emit Kubernetes manifests.
+- Preserved --name/-n, application-relative configuration/Secret files, substitution,
+  model immutability, secret-safe errors, and existing output-file behavior.
+- External --chart/-c remains required for validation and capability inspection.
+  Chart-specific value mapping and diagnostic presentation remain deferred;
+  existing translator capability limits remain in place.
+- Validation: 26 focused tests passed through WSL, including temporary inputs with
+  an empty PATH; scoped git diff --check passed. No full suite or example-based
+  tests were run. Examples, bundled chart, and versions were unchanged.
+
+## 2026.09.16.11 - [0.2.0]
+
+- Helm architecture Step 2: added --chart/-c PATH, required for helm/h and rejected
+  for Kubernetes format. Paths resolve from the working directory and must identify
+  a directory containing Chart.yaml.
+- Added a separate best-effort chart inspector for Deployment, Service, ConfigMap,
+  Secret, and PersistentVolumeClaim declarations in template content. Reads chart
+  metadata and optional values/schema; filenames do not determine capabilities.
+- Added structured capability notes for requested intent without detectable chart
+  support. Notes describe mapping uncertainty, not resource creation failures;
+  their CLI presentation remains deferred. Dynamic kinds, includes, dependencies,
+  and non-Deployment workloads are not resolved.
+- Preserved the existing Helm rendering path during this step. Validation:
+  21 focused tests passed using temporary fixtures; scoped git diff --check passed.
+  Examples, bundled chart, schema, and versions were unchanged.
+
 ## 2026.09.16.10 - [0.2.0]
 
 - CLI architecture Step 1: replaced render --renderer/-r with --format/-f.
