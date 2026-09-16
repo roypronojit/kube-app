@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Development target:** v0.2.0 · **Release status:** Development Preview
+> **Version:** 0.2.0 · **Release status:** Development Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 

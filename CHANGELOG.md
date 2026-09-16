@@ -2,10 +2,24 @@
 
 All notable changes to Kube-App are documented in this file.
 
-Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
-Increment `PATCH` when more than one release is made on the same day.
-For v0.2.0 development, entries are split by implementation step; the daily suffix orders
-these checkpoints and does not indicate a separately published release.
+Release versions match the Python package and chart. Dated development checkpoints
+use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
+The implementation history below is intentionally retained for traceability.
+
+## 2026.09.16.9 - [0.2.0]
+
+- Added Helm as an alternative rendering backend while keeping Kubernetes the
+  default and the Application model independent of renderer choice.
+- Added render --renderer/-r with kubernetes/k8s/k and helm/h aliases. Both paths
+  produce final Kubernetes YAML to stdout or a file; Helm requires helm on PATH.
+- Supports unchanged Basic, Medium, and Advanced examples, including file-based
+  configuration/Secrets, multiple/init containers, probes, storage, service accounts,
+  and Service targeting. Renderer and public CLI tests verify semantic equivalence.
+- Updated user/developer guides and CLI help. Aligned package and chart versions
+  to 0.2.0; preserved the documented Helm capability limits.
+- Step 24 release validation: 223 unittest tests passed, Helm lint passed, and
+  git diff --check passed. Reviewed CLI aliases, example equivalence, and tracked
+  file hygiene. No tag or GitHub Release was created.
 
 ## 2026.09.16.8 - [0.2.0]
 
