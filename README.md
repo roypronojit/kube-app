@@ -4,7 +4,7 @@
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 
-![Kube-App Overview](docs/kubeapp-overview.png)
+![Kube-App Overview](docs/kube-app-0.2.0-overview.png)
 
 ## Vision
 
@@ -470,7 +470,7 @@ See the [test guide](tests/README.md) for details.
 
 Kube-App separates the developer-facing application contract from validation and Kubernetes rendering.
 
-![Kube-App Architecture](docs/kubeapp-architecture.png)
+![Kube-App Architecture](docs/kube-app-0.2.0-architecture.png)
 
 The key implementation rule is:
 
@@ -682,7 +682,8 @@ kubeApp/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── RENDERING.md
-│   └── kubeapp-overview.png
+│   ├── kube-app-0.2.0-architecture.png
+│   └── kube-app-0.2.0-overview.png
 │
 ├── charts/
 │   └── kube-app/
