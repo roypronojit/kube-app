@@ -6,6 +6,30 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.15 - [0.2.0]
+
+- Step 6 consolidation: documented one application specification with
+  deployment-native outputs: Kubernetes manifests or Helm values. Updated the
+  main/source guides, architecture, rendering, example workflows and test guide
+  for the current flags, chart inspection, contract limits and stderr diagnostics.
+- Generated kubernetes-manifests.yaml and helm-values.yaml for Basic, Medium and
+  Advanced using the explicitly supplied reference chart and demonstration secrets.
+  Removed obsolete Advanced rendered artifacts; retained all app.yaml inputs.
+  Example snapshot coverage now verifies each distinct output against its renderer.
+- Release verification: all 258 unittest tests passed through the existing WSL
+  interpreter, including internal reference-chart tests. Helm lint passed. All 61
+  public module CLI checks passed from an external working directory with an empty
+  PATH, covering formats/defaults, names, output files, chart options, help,
+  diagnostics, app-relative inputs and failure preservation. git diff --check passed.
+- Verified consistent 0.2.0 metadata and repository hygiene; generated credentials
+  remain obvious placeholders. No implementation behavior or versions changed.
+- Retained charts/kube-app as an explicit reference chart and internal test target.
+  Marked overview/architecture PNG links as outdated; images remain unchanged and
+  need separate replacement review because they depict the superseded Helm path.
+- Release gate passed with the diagram refresh and reference-contract warnings
+  recorded as non-blocking observations. No commit, merge, tag, push or GitHub
+  Release was created.
+
 ## 2026.09.16.14 - [0.2.0]
 
 - Helm architecture Step 5: surfaced mapping and capability diagnostics on stderr,

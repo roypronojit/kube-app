@@ -1,54 +1,44 @@
-# Examples
+# Examples: two deployment workflows
 
-Basic, medium, and advanced demonstrate progressively richer applications using
-the same flat schema. Each directory keeps its input (`app.yaml`) beside its
-checked-in Kubernetes output (`rendered.yaml`).
+One application specification. Deployment-native outputs.
 
-| Example | Input | Generated output | Features |
+| Example | Developer input | Kubernetes output | Helm output |
 | --- | --- | --- | --- |
-| Basic | [app.yaml](basic/app.yaml) | [rendered.yaml](basic/rendered.yaml) | One container, ports, image pull policy, resources, ClusterIP service |
-| Medium | [app.yaml](medium/app.yaml) | [rendered.yaml](medium/rendered.yaml) | HTTP health probes, inline configuration and secrets, mounts, PVC, LoadBalancer service |
-| Advanced | [app.yaml](advanced/app.yaml) | [rendered.yaml](advanced/rendered.yaml) | Command/args, file inputs, multiple containers, init container, existing service account |
+| Basic | [app.yaml](basic/app.yaml) | [manifests](basic/kubernetes-manifests.yaml) | [values](basic/helm-values.yaml) |
+| Medium | [app.yaml](medium/app.yaml) | [manifests](medium/kubernetes-manifests.yaml) | [values](medium/helm-values.yaml) |
+| Advanced | [app.yaml](advanced/app.yaml) | [manifests](advanced/kubernetes-manifests.yaml) | [values](advanced/helm-values.yaml) |
 
-Run these commands from the repository root with Python 3.11 or later:
+Basic demonstrates one container, resources and a Service. Medium adds inline
+configuration/secrets, probes and storage. Advanced adds multiple/init containers,
+file inputs, command/args and an existing service account. All use the same schema.
+
+From the repository root after installing kube-app:
 
 ```sh
-python -m pip install -e .
-kube-app validate examples/basic/app.yaml
-kube-app render examples/basic/app.yaml -o examples/basic/rendered.yaml
-kube-app validate examples/medium/app.yaml
-kube-app render examples/medium/app.yaml -o examples/medium/rendered.yaml
-kube-app validate examples/advanced/app.yaml
-CATALOG_API_KEY=example-api-key kube-app render examples/advanced/app.yaml -o examples/advanced/rendered.yaml
+export CATALOG_API_KEY=example-api-key
+for example in basic medium advanced; do
+  kube-app validate examples/$example/app.yaml
+  kube-app render examples/$example/app.yaml -f kubernetes -o examples/$example/kubernetes-manifests.yaml
+  kube-app render examples/$example/app.yaml -f helm -c charts/kube-app -o examples/$example/helm-values.yaml
+done
 ```
 
-For the advanced render in PowerShell:
+In PowerShell set `$env:CATALOG_API_KEY = 'example-api-key'` and run each render
+command with the desired example name. Omit -o for stdout; Helm diagnostics remain
+on stderr. The explicit charts/kube-app reference is compatible with the existing
+values layout but its declared defaults do not enumerate every generated key, so
+warnings are expected. They do not remove values or imply failed resource creation.
+Review values against your own chart before using them in a separate Helm workflow.
+No Helm executable or cluster is required for generation; kube-app never templates
+or installs the supplied chart and does not modify it.
 
-```powershell
-$env:CATALOG_API_KEY = 'example-api-key'
-kube-app render examples/advanced/app.yaml -o examples/advanced/rendered.yaml
-```
+Advanced reads [configuration](advanced/config/catalog.properties) and
+[demonstration database credentials](advanced/secrets/catalog-db.env) relative to
+app.yaml even when invoked from another directory. All committed outputs use
+`change-me` / `example-api-key` placeholders. Never commit real resolved secrets.
+Images, storage classes and service-account identities are illustrative.
 
-Omit `-o` to inspect output without replacing the checked-in file. These commands
-use the default Kubernetes renderer and render locally without a cluster. Add
-`-r helm` to render any of the same inputs through Helm (installed on PATH); both
-paths produce final Kubernetes YAML. The checked-in outputs use the default renderer.
-
-The advanced application reads [config/catalog.properties](advanced/config/catalog.properties)
-and [secrets/catalog-db.env](advanced/secrets/catalog-db.env). Paths resolve
-relative to `app.yaml`, so its `config/` and `secrets/` references remain valid.
-Validation checks the schema and references; rendering additionally reads files
-and resolves environment variables.
-
-The outputs use demonstration credentials and `CATALOG_API_KEY=example-api-key`.
-Never commit real credentials or rendered secrets. Images, storage classes, and
-the advanced service account are illustrative and must suit your cluster before
-deployment.
-
-After intentional example changes, regenerate the corresponding output and run
-the [tests](../tests/README.md), which compare parsed YAML against these fixtures.
-See [rendering semantics](../docs/RENDERING.md) for file formats and defaults.
-
-
-Version 0.1.1 adds container ports, image pull policy, HTTP health probes,
-and command/args. See [runtime configuration](../docs/RENDERING.md#runtime-configuration-v011).
+`-f k8s`, `-f k` and the omitted format use Kubernetes. `-f h` selects Helm and
+requires -c/--chart. `-n/--name` overrides application identity while preserving
+explicit resource/container names. See [rendering semantics](../docs/RENDERING.md)
+for the contract, diagnostics, failure behavior and translation limits.

@@ -1,0 +1,91 @@
+name: catalog
+replicaCount: 3
+service:
+  enabled: true
+  type: LoadBalancer
+  port: 8080
+  targetPort: http
+serviceAccount:
+  create: false
+volumes:
+- name: volume-0
+  configMap:
+    name: catalog-config
+- name: volume-1
+  secret:
+    secretName: catalog-db
+- name: volume-2
+  persistentVolumeClaim:
+    claimName: catalog-data
+containerName: catalog
+image:
+  repository: registry.example.com/catalog
+  tag: 1.4.2
+  pullPolicy: IfNotPresent
+ports:
+- name: http
+  containerPort: 8080
+  protocol: TCP
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: '1'
+    memory: 512Mi
+envFrom:
+- configMapRef:
+    name: catalog-config
+- secretRef:
+    name: catalog-db
+env:
+- name: APP_ENV
+  value: production
+- name: LOG_LEVEL
+  value: info
+volumeMounts:
+- name: volume-0
+  mountPath: /etc/catalog
+  readOnly: true
+- name: volume-1
+  mountPath: /etc/catalog/secrets
+  readOnly: true
+- name: volume-2
+  mountPath: /data
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 3
+  successThreshold: 1
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 3
+  successThreshold: 1
+configuration:
+- name: catalog-config
+  data:
+    APP_ENV: production
+    LOG_LEVEL: info
+secrets:
+- name: catalog-db
+  data:
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_NAME: catalog
+    DB_USER: catalog
+    DB_PASSWORD: change-me
+storage:
+  name: data
+  size: 10Gi
+  storageClass: fast
+  accessModes:
+  - ReadWriteOnce

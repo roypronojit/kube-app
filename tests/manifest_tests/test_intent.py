@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from kubeapp.manifests import application_to_kubernetes_manifests
 from kubeapp.models import Application
 from kubeapp.parser import load_application
+from kubeapp.renderers import HelmRenderer
 
 from .helpers import PROJECT_ROOT as ROOT, _container, _pod_spec
 
@@ -115,7 +116,11 @@ class IntentTests(unittest.TestCase):
                     )
                     self.assertEqual(
                         manifests,
-                        list(yaml.safe_load_all((base / "rendered.yaml").read_text())),
+                        list(yaml.safe_load_all((base / "kubernetes-manifests.yaml").read_text())),
+                    )
+                    self.assertEqual(
+                        HelmRenderer().render(load_application(base / "app.yaml"), base),
+                        yaml.safe_load((base / "helm-values.yaml").read_text()),
                     )
                     pod = next(m for m in manifests if m["kind"] == "Deployment")[
                         "spec"

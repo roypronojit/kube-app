@@ -1,0 +1,152 @@
+name: catalog
+replicaCount: 3
+service:
+  enabled: true
+  type: LoadBalancer
+  port: 8080
+  targetPort: http
+serviceAccount:
+  create: false
+  name: catalog
+initContainers:
+- containerName: database-migration
+  image:
+    repository: registry.example.com/catalog-migrations
+    tag: 1.4.2
+    pullPolicy: IfNotPresent
+  resources: {}
+  command:
+  - /app/migrate
+  args:
+  - --database
+  - catalog
+  envFrom:
+  - secretRef:
+      name: catalog-db
+  volumeMounts:
+  - name: volume-0
+    mountPath: /data
+volumes:
+- name: volume-0
+  persistentVolumeClaim:
+    claimName: catalog-data
+- name: volume-1
+  configMap:
+    name: catalog-config
+- name: volume-2
+  secret:
+    secretName: catalog-db
+containers:
+- containerName: catalog
+  image:
+    repository: registry.example.com/catalog
+    tag: 1.4.2
+    pullPolicy: IfNotPresent
+  ports:
+  - name: http
+    containerPort: 8080
+    protocol: TCP
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: '2'
+      memory: 1Gi
+  command:
+  - /app/catalog
+  args:
+  - --port
+  - '8080'
+  envFrom:
+  - configMapRef:
+      name: catalog-config
+  - configMapRef:
+      name: catalog-feature-flags
+  - secretRef:
+      name: catalog-db
+  - secretRef:
+      name: catalog-api
+  env:
+  - name: APP_ENV
+    value: production
+  - name: LOG_LEVEL
+    value: info
+  volumeMounts:
+  - name: volume-1
+    mountPath: /etc/catalog
+    readOnly: true
+  - name: volume-2
+    mountPath: /etc/catalog/secrets
+    readOnly: true
+  - name: volume-0
+    mountPath: /data
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 3
+    successThreshold: 1
+  livenessProbe:
+    httpGet:
+      path: /health/live
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 3
+    successThreshold: 1
+  startupProbe:
+    httpGet:
+      path: /health/startup
+      port: 8080
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    timeoutSeconds: 1
+    failureThreshold: 3
+    successThreshold: 1
+- containerName: metrics
+  image:
+    repository: registry.example.com/catalog-metrics
+    tag: '1.0'
+    pullPolicy: IfNotPresent
+  ports: []
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  env:
+  - name: METRICS_PORT
+    value: '9090'
+configuration:
+- name: catalog-config
+  data:
+    APP_ENV: production
+    LOG_LEVEL: info
+- name: catalog-feature-flags
+  data:
+    FEATURE_NEW_CHECKOUT: 'true'
+    FEATURE_RECOMMENDATIONS: 'false'
+secrets:
+- name: catalog-db
+  data:
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_NAME: catalog
+    DB_USER: catalog
+    DB_PASSWORD: change-me
+- name: catalog-api
+  data:
+    API_KEY: example-api-key
+storage:
+  name: data
+  size: 50Gi
+  storageClass: fast
+  accessModes:
+  - ReadWriteOnce
