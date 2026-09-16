@@ -6,6 +6,24 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.16 - [0.2.0]
+
+- Final Helm polish: added reference-chart values.schema.json declarations for
+  consumed optional resources, storage, service-account name, probes and process
+  overrides. Existing values.yaml defaults remain unchanged; contract discovery
+  and mapping status semantics are unchanged, with no chart-specific suppression.
+- Omit empty optional resources mappings through the shared application/init
+  container translator. Preserve populated resources and intentional empty ports
+  lists that disable chart defaults. The reference template retains equivalent
+  empty application-container resources when no resources values are supplied.
+- Refreshed the Advanced Helm snapshot and affected README guidance. Manual
+  Basic, Medium and Advanced generation against the reference chart produced no
+  warnings or notes with Helm absent from PATH. Advanced used a demonstration
+  API key; populated catalog/metrics resources were unchanged and stderr was empty.
+- Focused renderer/reference-chart coverage: 43 tests passed; Helm lint passed.
+  Full verification: all 260 unittest tests passed through WSL; git diff --check passed.
+  No architecture, CLI, mapping policy, Kubernetes renderer or version changes.
+
 ## 2026.09.16.15 - [0.2.0]
 
 - Step 6 consolidation: documented one application specification with

@@ -111,8 +111,9 @@ def _container_values(
             {"name": p.name, "containerPort": p.port, "protocol": p.protocol}
             for p in container.ports
         ],
-        "resources": resources,
     }
+    if resources:
+        values["resources"] = resources
     for field in ("command", "args"):
         value = getattr(container, field)
         if value is not None:

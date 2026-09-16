@@ -181,7 +181,8 @@ kube-app render examples/basic/app.yaml -f h -c charts/kube-app -n preview > val
 ```
 
 `charts/kube-app` is an explicit reference chart for these commands, not an implicit
-requirement. A supplied chart's keys may differ; diagnostics flag mapping uncertainty.
+requirement. The reference contract covers all three examples without mapping diagnostics.
+Other charts' keys may differ; diagnostics flag mapping uncertainty.
 The commands are also available as `python -m kubeapp`.
 
 # Application Model

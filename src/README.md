@@ -91,3 +91,8 @@ The caller supplies environment substitutions and the application's base directo
 Neither renderer mutates the model. Chart inspection/mapping are separate components;
 the CLI coordinates them. See [architecture](../docs/ARCHITECTURE.md) and
 [tests](../tests/README.md). The bundled chart is retained for reference/internal tests.
+
+Empty optional resources mappings are omitted for application and init containers.
+Explicit empty ports lists remain because they disable chart defaults; populated
+resources and intentional enable/create flags are preserved. The reference chart
+declares supported optional paths in values.schema.json without activating defaults.

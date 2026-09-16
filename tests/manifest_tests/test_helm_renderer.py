@@ -378,7 +378,7 @@ class HelmRendererTests(unittest.TestCase):
                 self.assertEqual(values["service"], {"enabled": False})
                 self.assertEqual(values["ports"], [])
                 application.containers[0].resources = None
-                self.assertEqual(HelmRenderer().render(application)["resources"], {})
+                self.assertNotIn("resources", HelmRenderer().render(application))
 
     def test_advanced_values_render_without_mutating_application(self):
         base_dir = ROOT / "examples/advanced"

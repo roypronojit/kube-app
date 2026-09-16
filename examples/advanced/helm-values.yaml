@@ -14,7 +14,6 @@ initContainers:
     repository: registry.example.com/catalog-migrations
     tag: 1.4.2
     pullPolicy: IfNotPresent
-  resources: {}
   command:
   - /app/migrate
   args:

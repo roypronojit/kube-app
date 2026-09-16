@@ -26,8 +26,9 @@ done
 In PowerShell set `$env:CATALOG_API_KEY = 'example-api-key'` and run each render
 command with the desired example name. Omit -o for stdout; Helm diagnostics remain
 on stderr. The explicit charts/kube-app reference is compatible with the existing
-values layout but its declared defaults do not enumerate every generated key, so
-warnings are expected. They do not remove values or imply failed resource creation.
+values layout. Its defaults and schema declare the supported generated paths, so
+the three examples produce no mapping warnings or notes. Other charts can report
+contract mismatches; diagnostics never remove values or imply failed resource creation.
 Review values against your own chart before using them in a separate Helm workflow.
 No Helm executable or cluster is required for generation; kube-app never templates
 or installs the supplied chart and does not modify it.
