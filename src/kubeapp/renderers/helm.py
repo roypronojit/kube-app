@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from kubeapp.models import Application, DataResource, IntentContainer
+from kubeapp.manifests import SERVICE_PORT_NAME
 
 from .base import Renderer
 
@@ -38,19 +39,30 @@ class HelmRenderer(Renderer[dict[str, Any]]):
             _container_values(application, container, volumes)
             for container in application.containers
         ]
-        if len(containers) == 1:
-            values.update(containers[0])
-        else:
-            values["containers"] = containers
         if volumes:
             values["volumes"] = list(volumes.values())
         if application.service:
+            selected = _service_container(application)
+            if not selected.ports:
+                rendered = containers[application.containers.index(selected)]
+                rendered["ports"] = [{
+                    "name": SERVICE_PORT_NAME,
+                    "containerPort": application.service.target_port or application.service.port,
+                    "protocol": "TCP",
+                }]
             values["service"] = {
                 "enabled": True,
                 "type": application.service.type,
                 "port": application.service.port,
-                "targetPort": application.service.target_port or _service_container(application).ports[0].name,
+                "targetPort": application.service.target_port or (
+                    next(p.name for p in selected.ports if p.protocol == "TCP")
+                    if selected.ports else SERVICE_PORT_NAME
+                ),
             }
+        if len(containers) == 1:
+            values.update(containers[0])
+        else:
+            values["containers"] = containers
         for field in ("configuration", "secrets"):
             if getattr(application, field):
                 values[field] = [
@@ -172,8 +184,6 @@ def _validate_supported(application: Application) -> None:
     if application.service:
         if application.service.type not in ("ClusterIP", "LoadBalancer"):
             unsupported.append("service.type other than ClusterIP/LoadBalancer")
-        if not _service_container(application).ports:
-            unsupported.append("service without a declared container port")
     if unsupported:
         raise NotImplementedError(
             "Helm values support Basic and Medium capabilities; unsupported: "

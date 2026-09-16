@@ -47,6 +47,42 @@ class BasicChartTests(unittest.TestCase):
     def render_chart(self):
         return {doc["kind"]: doc for doc in self.render_documents()}
 
+    def test_service_without_declared_ports_matches_kubernetes(self):
+        for selection in (None, "catalog", "worker"):
+            for target in (None, 9091):
+                with self.subTest(selection=selection, target=target):
+                    containers = [{"name": "catalog", "image": "catalog:1"}]
+                    if selection == "worker":
+                        containers[0]["ports"] = [{"name": "other", "port": 7070}]
+                        containers += [{"name": "worker", "image": "worker:1"},
+                                       {"name": "idle", "image": "idle:1"}]
+                    application = Application.model_validate({
+                        "name": "catalog", "containers": containers,
+                        "service": {"port": 8080, "container": selection, "targetPort": target},
+                    })
+                    before = application.model_dump()
+                    self.values = HelmRenderer().render(application)
+                    actual = self.render_chart()
+                    expected = {doc["kind"]: doc for doc in KubernetesRenderer().render(application)}
+                    self.assertEqual(actual["Service"]["spec"], expected["Service"]["spec"])
+                    def ports(resources):
+                        return [c.get("ports") for c in resources["Deployment"]["spec"]["template"]["spec"]["containers"]]
+                    self.assertEqual(ports(actual), ports(expected))
+                    self.assertEqual(application.model_dump(), before)
+
+    def test_unchanged_advanced_example_renders(self):
+        base_dir = ROOT / "examples/advanced"
+        application = load_application(base_dir / "app.yaml")
+        before = application.model_dump()
+        with patch.dict(os.environ, {"CATALOG_API_KEY": "example-api-key"}):
+            self.values = HelmRenderer().render(application, base_dir)
+        documents = self.render_documents()
+        self.assertCountEqual([doc["kind"] for doc in documents], [
+            "ConfigMap", "ConfigMap", "Secret", "Secret",
+            "PersistentVolumeClaim", "Deployment", "Service",
+        ])
+        self.assertEqual(application.model_dump(), before)
+
     def test_service_targets_explicit_application_container(self):
         for target in (None, "metrics", 9090):
             with self.subTest(target=target):

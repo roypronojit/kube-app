@@ -113,11 +113,38 @@ class HelmRendererTests(unittest.TestCase):
                         data["containers"][0]["health"] = None
                     data["service"] = {"port": 80, "container": selected}
                     application = Application.model_validate(data)
-                    if selected == "worker":
-                        with self.assertRaisesRegex(NotImplementedError, "without a declared container port"):
-                            HelmRenderer().render(application)
-                    else:
-                        self.assertEqual(HelmRenderer().render(application)["service"]["targetPort"], "metrics")
+                    self.assertEqual(
+                        HelmRenderer().render(application)["service"]["targetPort"],
+                        "http" if selected == "worker" else "metrics",
+                    )
+
+    def test_service_without_declared_ports_values_and_immutability(self):
+        for selection in (None, "catalog", "worker"):
+            for target in (None, 9091):
+                with self.subTest(selection=selection, target=target):
+                    containers = [{"name": "catalog", "image": "catalog:1"}]
+                    if selection == "worker":
+                        containers[0]["ports"] = [{"name": "other", "port": 7070}]
+                        containers += [{"name": "worker", "image": "worker:1"},
+                                       {"name": "idle", "image": "idle:1"}]
+                    application = Application.model_validate({
+                        "name": "catalog", "containers": containers,
+                        "service": {"port": 8080, "container": selection, "targetPort": target},
+                    })
+                    before = application.model_dump()
+                    values = HelmRenderer().render(application)
+                    rendered = values.get("containers", [values])
+                    selected = rendered[1] if selection == "worker" else rendered[0]
+                    self.assertEqual(selected["ports"], [{
+                        "name": "http", "containerPort": target or 8080, "protocol": "TCP",
+                    }])
+                    self.assertEqual(values["service"]["targetPort"], target or "http")
+                    if selection == "worker":
+                        self.assertEqual(rendered[0]["ports"][0]["containerPort"], 7070)
+                        self.assertEqual(rendered[2]["ports"], [])
+                    self.assertEqual(application.model_dump(), before)
+                    selected["ports"][0]["containerPort"] = 1234
+                    self.assertEqual(application.model_dump(), before)
 
     def test_actual_medium_values_include_environment_and_service(self):
         application = load_application(ROOT / "examples/medium/app.yaml")
@@ -353,14 +380,18 @@ class HelmRendererTests(unittest.TestCase):
                 application.containers[0].resources = None
                 self.assertEqual(HelmRenderer().render(application)["resources"], {})
 
-    def test_advanced_fails_without_partial_output(self):
-        for example in ("advanced",):
-            with self.subTest(example=example):
-                application = load_application(ROOT / f"examples/{example}/app.yaml")
-                before = application.model_dump()
-                with self.assertRaisesRegex(NotImplementedError, "unsupported:"):
-                    HelmRenderer().render(application)
-                self.assertEqual(application.model_dump(), before)
+    def test_advanced_values_render_without_mutating_application(self):
+        base_dir = ROOT / "examples/advanced"
+        application = load_application(base_dir / "app.yaml")
+        before = application.model_dump()
+        with patch.dict(os.environ, {"CATALOG_API_KEY": "example-api-key"}):
+            values = HelmRenderer().render(application, base_dir)
+        self.assertEqual(values["service"]["targetPort"], "http")
+        self.assertEqual(values["containers"][0]["ports"], [{
+            "name": "http", "containerPort": 8080, "protocol": "TCP",
+        }])
+        self.assertEqual(values["containers"][1]["ports"], [])
+        self.assertEqual(application.model_dump(), before)
 
     def test_unsupported_capabilities_are_not_silently_dropped(self):
         for field, value in (

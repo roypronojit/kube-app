@@ -7,6 +7,21 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.4 - [0.2.0]
+
+- Step 19: matched KubernetesRenderer Service targeting when the selected container
+  has no declared ports. Helm values add an http TCP port using explicit numeric
+  targetPort or service.port; the Service uses explicit targetPort or defaults to http.
+- Supports default and explicit service.container selection without mutating the
+  Application. Declared ports and existing named/numeric targets are preserved.
+- Added focused values/chart tests for fallback ports, container selection,
+  independent container ports, and immutability; replaced the obsolete Advanced rejection test.
+- Validation: 214 unittest tests passed; Helm lint passed with default and Advanced
+  values. The unchanged Advanced example succeeds through HelmRenderer + helm template
+  with its resource base directory and example CATALOG_API_KEY supplied.
+- No Advanced rendering blockers remain. No schema or CLI changes or full Advanced
+  semantic equivalence work was performed.
+
 ## 2026.09.16.3 - [0.2.0]
 
 - Step 18: added explicit service.container resolution using the validated reference.
