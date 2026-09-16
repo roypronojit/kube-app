@@ -14,15 +14,18 @@ Run one module with a discovery pattern:
 python -m unittest discover -s tests -p "test_intent.py" -v
 ```
 
-No running Kubernetes cluster is needed. Chart template tests use Helm when it
-is on PATH and are skipped otherwise; all other tests run without Helm.
+No running Kubernetes cluster is needed. Chart template and Helm CLI integration
+tests require Helm on PATH and are skipped otherwise. Install the package as above
+so end-to-end tests can invoke the public kube-app command.
 
 | Module | Coverage |
 | --- | --- |
 | `manifest_tests/test_helm_files.py` | Relative configuration/Secret files, substitution, matching file errors, and model immutability |
-| `manifest_tests/test_chart.py` | Basic end-to-end rendering and semantic equivalence, inline ConfigMaps/Secrets and environment consumption, optional Service/ports, and service account creation (requires Helm) |
-| `manifest_tests/test_helm_renderer.py` | Basic, inline resource, storage and mount values, substitution, ordering, immutability, and unsupported capabilities |
+| `manifest_tests/test_chart.py` | Basic/Medium/Advanced semantic equivalence, resources, ordered application/init containers, probes, ports, and service account references (requires Helm) |
+| `manifest_tests/test_helm_renderer.py` | Basic/Medium/Advanced values, file and inline resources, storage, mounts, probes, ordering, immutability, and capability limits |
 | `cli_tests/test_commands.py` | Validation/render commands, exit codes, output files, and failed-render diagnostics |
+| `cli_tests/test_equivalence.py` | Public CLI equivalence for all examples, stdout/files, defaults/aliases, external working directories, and failure output preservation (requires Helm) |
+| `semantic_helpers.py` | Shared renderer/CLI normalization and complete resource comparison |
 | `cli_tests/test_parser.py` | YAML and filesystem input errors through the parser API |
 | `manifest_tests/test_intent.py` | Flat schema, defaults, resource wiring, file inputs, substitution, and example snapshots |
 | `model_tests/test_application.py` | Application/container composition, services, identities, and init-container validation |
@@ -32,12 +35,12 @@ is on PATH and are skipped otherwise; all other tests run without Helm.
 | `manifest_tests/test_resources.py` | Environment, substitution, mount permissions, resource ranges, and persistent-volume rendering |
 | `manifest_tests/test_examples.py` | Advanced example resource wiring and ordering |
 | `manifest_tests/test_runtime.py` | Runtime validation, health probes, ports, and deterministic rendering |
-| `manifest_tests/test_generators.py` | Compatibility tests for the deferred Helm values generator |
+| `manifest_tests/test_generators.py` | Compatibility tests for the legacy-schema Helm values helper |
 | `manifest_tests/test_renderers.py` | Kubernetes adapter parity, model immutability, base directory handling, and legacy compatibility |
 
 The CLI/input, model, and manifest test packages keep reusable fixtures and builders in
 their respective `helpers.py` modules. Parser tests live with CLI/input tests; intent and runtime tests exercise validation
-through rendering, and the deferred Helm generator is kept with manifest output tests.
+through rendering, and the legacy-schema Helm helper is kept with manifest output tests.
 Group tests by responsibility rather than
 line count; keep related cases together and avoid duplicating example snapshots.
 Package `__init__.py` files allow the standard discovery command to find all tests.
@@ -54,7 +57,8 @@ regenerate the affected output using the [example guide](../examples/README.md),
 review the change, and rerun the suite. Keep real credentials out of fixtures.
 
 The Helm chart can be checked separately with `helm lint charts/kube-app`;
-this is not part of the Python test suite or the current CLI render path.
+lint is separate from the Python suite. Helm-backed CLI tests run helm template
+against this same chart.
 
 
 Version 0.1.1 adds container ports, image pull policy, HTTP health probes,

@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 0.1.1 · **Release status:** Development Preview
+> **Development target:** v0.2.0 · **Release status:** Development Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 
@@ -82,7 +82,7 @@ Application Model
 Validation + Defaults
    │
    ▼
-Kubernetes Renderer
+KubernetesRenderer or HelmRenderer + helm template
    │
    ▼
 Kubernetes Manifests
@@ -110,6 +110,7 @@ Development currently requires:
 
 * Python 3.11 or later
 * pip
+* Helm installed and available on `PATH` only when using the Helm renderer
 
 A Kubernetes cluster is **not required** to validate applications or render manifests.
 
@@ -131,13 +132,26 @@ kube-app validate examples/basic/app.yaml
 
 ## Render Kubernetes manifests
 
-Write the rendered manifests to standard output:
+Both renderers produce final Kubernetes YAML. Kubernetes is the default; select
+a backend with `--renderer` or `-r`. Aliases normalize internally to `kubernetes`
+or `helm`:
+
+| Renderer | Accepted values |
+| --- | --- |
+| Kubernetes (default) | `kubernetes`, `k8s`, `k` |
+| Helm | `helm`, `h` |
+
+Write manifests to standard output:
 
 ```sh
 kube-app render examples/basic/app.yaml
+kube-app render examples/basic/app.yaml --renderer kubernetes
+kube-app render examples/basic/app.yaml -r k8s
+kube-app render examples/basic/app.yaml --renderer helm
+kube-app render examples/basic/app.yaml -r h
 ```
 
-Or write them to a file:
+Use `-o` / `--output` with either renderer to write manifests to a file:
 
 ```sh
 kube-app render examples/basic/app.yaml \
@@ -157,7 +171,9 @@ python -m kubeapp render examples/basic/app.yaml
 
 Kube-App uses **one application schema**.
 
-Basic, medium, and advanced applications are not different modes or APIs. They are progressively richer uses of the same model.
+Basic, medium, and advanced applications are progressively richer uses of the same model.
+All three examples work unchanged with either renderer; renderer selection is a CLI option,
+not part of the application YAML.
 
 ## Basic
 
@@ -443,7 +459,8 @@ The tests cover:
 * example output comparisons
 * compatibility behavior
 
-No running Kubernetes cluster or Helm installation is required for the Python test suite.
+No running Kubernetes cluster is required. Install Helm on `PATH` to run the complete
+suite, including chart and CLI equivalence tests; those tests are skipped without Helm.
 
 See the [test guide](tests/README.md) for details.
 
@@ -459,27 +476,36 @@ The key implementation rule is:
 
 > **The application model must remain independent of the renderer.**
 
-This separation allows the Kubernetes implementation to evolve and alternative rendering approaches to be introduced later without redefining the developer-facing application contract.
+Both implemented backends consume the same validated Application model. The CLI
+serializes KubernetesRenderer resources directly or passes HelmRenderer values
+through the existing chart with `helm template`.
 
 See [Architecture](docs/ARCHITECTURE.md) for the architectural source of truth.
 
 ---
 
-# Helm Status
+# Helm Renderer
 
-Helm integration is currently **deferred**.
+Helm is an implemented alternative rendering backend. `kube-app render -r helm`
+uses the repository's `charts/kube-app` chart and `helm template` to produce final
+Kubernetes YAML. It renders your application; it does not install a Helm release
+or deploy kube-app itself. No cluster connection is required.
 
-The repository contains a Helm chart and retained compatibility code for Helm values generation, but the public `kube-app render` command does **not** use Helm.
+The default Kubernetes renderer and validation work without Helm. The Helm backend
+requires Helm on `PATH`. Both backends resolve configuration and Secret files
+relative to the application YAML and support the unchanged Basic, Medium, and
+Advanced examples. Their output is tested for semantic equivalence; descriptive
+Helm labels, document ordering, and equivalent Secret encoding may differ.
 
-The current path renders Kubernetes manifests directly from the application model.
+The Helm backend currently rejects digest image references, init container ports,
+multiple ports per container, non-TCP ports, and Service types other than ClusterIP
+or LoadBalancer. These limits do not change the public schema.
 
-The existing chart can be checked independently with:
+Check the chart with:
 
 ```sh
 helm lint charts/kube-app
 ```
-
-A future Helm renderer may be introduced as an alternative rendering backend, but Helm must not define the public application model.
 
 ---
 
@@ -506,7 +532,7 @@ Kube-App is intentionally being developed incrementally.
 
 ## v0.1 — Core Application Abstraction
 
-Current focus:
+Implemented foundation:
 
 * developer-facing application schema
 * typed application model
@@ -520,6 +546,12 @@ Current focus:
 * service account references
 * deterministic examples
 * automated tests
+
+## v0.2.0 — Alternative Rendering Backend
+
+* Kubernetes and Helm renderer selection with aliases
+* final Kubernetes YAML through either CLI path
+* Basic, Medium, and Advanced semantic equivalence tests
 
 ## Platform Defaults and Security
 
@@ -630,8 +662,9 @@ kubeApp/
 │       ├── __main__.py
 │       ├── cli.py
 │       ├── parser.py
-│       ├── models.py
-│       ├── manifests.py
+│       ├── models/
+│       ├── manifests/
+│       ├── renderers/
 │       └── generators.py
 │
 ├── examples/

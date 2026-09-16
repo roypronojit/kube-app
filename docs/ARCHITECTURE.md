@@ -17,7 +17,7 @@ Application Model
   ↓
 Validation + Defaults
   ↓
-Renderer
+KubernetesRenderer or HelmRenderer + helm template
   ↓
 Kubernetes YAML
 ```
@@ -140,11 +140,11 @@ Kubernetes remains the escape hatch for advanced requirements.
 Keep rendering separate from the model:
 
 ```text
-Application Model
-      ↓
-Kubernetes Renderer
-      ↓
-Deployment / Service / ConfigMap / Secret / PVC / ...
+Validated Application Model
+  -> KubernetesRenderer -> resource dictionaries -> YAML
+  -> HelmRenderer -> values -> helm template -> YAML
+
+Both produce Deployment / Service / ConfigMap / Secret / PVC / ...
 ```
 
 Renderers should be deterministic and testable without a live Kubernetes cluster.
@@ -162,12 +162,15 @@ aliases normalize to canonical names. Both paths output final Kubernetes YAML,
 with existing `--output` support. The Helm path requires `helm` on PATH and runs
 `helm template` against the repository's `charts/kube-app` chart, passing resolved
 values through stdin. File inputs resolve relative to the application YAML.
+Helm is an alternative backend for rendering applications, not a deployment of
+kube-app itself. It does not install a release or require a live cluster. Only the
+Helm backend requires the Helm executable.
 Validation/render failures return 1; invalid CLI arguments return 2.
 Existing manifest functions and legacy application support remain available.
 The model imports no renderer code.
 
 `HelmRenderer` implements `Renderer[dict[str, Any]]` and generates values for
-the Basic and Medium examples, including inline configuration and Secret resources consumed as
+the Basic, Medium, and Advanced examples, including inline configuration and Secret resources consumed as
 environment variables. `configuration` and `secrets` values preserve declaration
 order and Application-defined names. Secrets render as Opaque with `stringData`,
 using the same inline substitution as configuration. `envFrom` places configuration
@@ -180,19 +183,22 @@ one volume identified by resource kind and name.
 HTTP health intent maps to readinessProbe, livenessProbe, and startupProbe values.
 Only declared probes render; numeric/named ports and model timing defaults are preserved.
 Literal environment entries render as ordered `env` values. ClusterIP/LoadBalancer
-Services preserve explicit numeric or named targetPort values. The actual Medium
-example is tested end-to-end and compared semantically with KubernetesRenderer.
+Services preserve explicit numeric or named targetPort values. All three examples
+are tested for semantic equivalence through the renderers and public CLI, including
+stdout and file output. Normalization permits only descriptive Helm resource labels,
+document ordering, equivalent Secret encoding, and omitted default service accounts.
 Configuration and Secret files use UTF-8 key=value parsing and environment
 substitution at render time, matching KubernetesRenderer. Pass the application
 YAML's parent directory as `base_dir`; the parser does not attach paths to the model.
 Resolved data uses the same values/chart structure as inline resources.
-Other unsupported Advanced capabilities
-remain unsupported and fail explicitly. Helm template execution is owned by the
+Digest image references, init container ports, multiple ports per container,
+non-TCP ports, and Service types other than ClusterIP/LoadBalancer remain
+unsupported by Helm and fail explicitly. Helm template execution is owned by the
 CLI; HelmRenderer itself continues to return values. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors
 `service.enabled` and `serviceAccount.create` for Basic values.
 The legacy Helm-values helper remains compatibility code,
-sharing image-reference splitting with the new renderer.
+sharing image-reference splitting with HelmRenderer; the CLI does not call it.
 
 A declared Application serviceAccount becomes `serviceAccount.name` with
 `serviceAccount.create=false`. The chart references that exact identity without
@@ -203,8 +209,11 @@ values list, each with independent supported settings. Single-container values k
 their existing top-level fields. Both shapes use one container translator and one
 chart loop. Resources remain application-scoped and volumes are deduplicated across
 containers. Explicit Service container selection resolves the validated application
-container reference and uses its declared port; targets without declared ports
-remain unsupported. Omitted selection preserves existing single-container behavior.
+container reference and uses its declared port. If the selected container has no
+declared ports, rendered output adds an http TCP port using explicit numeric
+targetPort or service.port. The Service uses explicit targetPort or defaults to http.
+This matches KubernetesRenderer without mutating the Application. Omitted selection
+preserves existing single-container behavior.
 
 Init containers use a separate ordered `initContainers` values list and chart block.
 They reuse supported container resource translation and allocate shared volumes

@@ -57,6 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser = subparsers.add_parser(
         "render",
         help="Generate Kubernetes manifests from an application definition",
+        description="Render final Kubernetes YAML to stdout or an output file.",
     )
 
     render_parser.add_argument(
@@ -67,7 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser.add_argument("-o", "--output", help="Write manifests to this file")
     render_parser.add_argument(
         "-r", "--renderer", type=_renderer_name, default="kubernetes",
-        metavar="RENDERER", help="Renderer: kubernetes (k8s, k; default) or helm (h)",
+        metavar="RENDERER",
+        help="Backend: kubernetes | k8s | k (default: kubernetes), or helm | h (requires Helm on PATH)",
     )
 
     return parser

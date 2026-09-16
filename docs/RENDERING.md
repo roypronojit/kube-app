@@ -2,11 +2,14 @@
 
 The public schema is described in [ARCHITECTURE.md](ARCHITECTURE.md). The
 `basic`, `medium`, and `advanced` examples use the same schema. `render`
-produces Kubernetes YAML directly; Helm integration remains deferred.
+produces final Kubernetes YAML through KubernetesRenderer (the default) or
+HelmRenderer followed by `helm template`. Select with `--renderer` / `-r`:
+`kubernetes`, `k8s`, `k` or `helm`, `h`. Only the Helm backend requires Helm on `PATH`.
 
 ```sh
 kube-app validate examples/medium/app.yaml
 kube-app render examples/medium/app.yaml -o examples/medium/rendered.yaml
+kube-app render examples/medium/app.yaml -r helm
 ```
 
 Without `-o` / `--output`, manifests go to standard output. Parent output

@@ -30,7 +30,9 @@ kube-app render examples/advanced/app.yaml -o examples/advanced/rendered.yaml
 ```
 
 Omit `-o` to inspect output without replacing the checked-in file. These commands
-render locally; they do not deploy to a cluster or invoke Helm.
+use the default Kubernetes renderer and render locally without a cluster. Add
+`-r helm` to render any of the same inputs through Helm (installed on PATH); both
+paths produce final Kubernetes YAML. The checked-in outputs use the default renderer.
 
 The advanced application reads [config/catalog.properties](advanced/config/catalog.properties)
 and [secrets/catalog-db.env](advanced/secrets/catalog-db.env). Paths resolve

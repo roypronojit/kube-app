@@ -7,6 +7,18 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.8 - [0.2.0]
+
+- Step 23: updated the main/source READMEs and architecture, rendering, examples,
+  and test guides for the implemented Kubernetes and Helm backends. Documented
+  renderer flags/aliases, Kubernetes default, final YAML output, and Helm's PATH
+  requirement; kept application examples and the model renderer-independent.
+- Replaced stale deferred/future Helm wording and obsolete Advanced capability
+  statements. Retained accurate legacy API references and prior checkpoint history.
+- Clarified render help text with output purpose, accepted aliases, default, and
+  Helm prerequisite. No features or rendering semantics changed.
+- Validation: all 223 unittest tests passed; Helm lint and git diff --check passed.
+
 ## 2026.09.16.7 - [0.2.0]
 
 - Step 22: added end-to-end equivalence tests invoking the installed kube-app CLI
