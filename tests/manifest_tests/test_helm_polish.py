@@ -14,6 +14,28 @@ from .helpers import PROJECT_ROOT
 
 
 class HelmPolishTests(unittest.TestCase):
+    def test_service_types_pass_through_model_and_both_outputs(self):
+        for service_type in ("ClusterIP", "NodePort", "LoadBalancer"):
+            for target in (8080, "http"):
+                with self.subTest(service_type=service_type, target=target):
+                    application = Application.model_validate({
+                        "name": "app", "containers": [{"name": "web", "image": "nginx:1",
+                            "ports": [{"name": "http", "port": 8080}]}],
+                        "service": {"type": service_type, "port": 80, "targetPort": target},
+                    })
+                    before = application.model_dump()
+                    self.assertEqual(application.service.type, service_type)
+                    service = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Service")
+                    self.assertEqual(service["spec"]["type"], service_type)
+                    self.assertEqual(service["spec"]["ports"], [{"name": "http", "port": 80,
+                                                               "targetPort": target, "protocol": "TCP"}])
+                    values = HelmRenderer().render(application)
+                    self.assertEqual(values["service"], {"enabled": True, "type": service_type,
+                                                         "port": 80, "targetPort": target})
+                    self.assertEqual(helm_messages(compare_values(values, inspect_chart(
+                        PROJECT_ROOT / "charts/kube-app", application))), ())
+                    self.assertEqual(application.model_dump(), before)
+
     def test_reference_contract_covers_examples_without_diagnostics(self):
         with patch.dict(os.environ, {"CATALOG_API_KEY": "test-api-key"}):
             for name in ("basic", "medium", "advanced"):

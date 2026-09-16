@@ -193,8 +193,11 @@ Helm values retain name, replicaCount, image/container settings, ordered contain
 and initContainers, resources, probes, service configuration, configuration/secrets,
 storage, volumes and mounts. File parsing and substitution occur during translation.
 Single-container values use top-level fields; multiple containers use a containers list.
-Digest image references, init ports, multiple/non-TCP ports, and Service types other
-than ClusterIP/LoadBalancer remain unsupported by the current Helm translator.
+The Helm translator supports ClusterIP, NodePort and LoadBalancer Service types.
+NodePort uses automatic Kubernetes port allocation; no explicit nodePort field is exposed.
+Digest image references, init ports and multiple/non-TCP ports remain unsupported.
+ExternalName, headless Services, explicit nodePort allocation, multiple Service ports
+and additional Service networking options are outside the current public model.
 
 charts/kube-app is a reference chart and internal template-test target, not a required
 implicit CLI dependency. Internal reference-chart resource comparisons do not imply

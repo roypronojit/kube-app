@@ -6,6 +6,19 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.17 - [0.2.0]
+
+- NodePort completeness review: the Application model, Kubernetes renderer and
+  reference Service template already supported NodePort; only the Helm translator's
+  allowlist excluded it. Added NodePort alongside ClusterIP and LoadBalancer.
+- Generated service values preserve enabled, type, port and targetPort. No explicit
+  nodePort field or other Service networking capability was added. The reference
+  chart and its values contract required no changes.
+- Updated current Service documentation and replaced obsolete NodePort-failure
+  fixtures with unsupported digest images, retaining failure/secret-safety checks.
+- Six focused tests passed, covering model validation, both outputs, named/numeric
+  targets, unchanged ClusterIP/LoadBalancer behavior and reference-chart consumption.
+
 ## 2026.09.16.16 - [0.2.0]
 
 - Final Helm polish: added reference-chart values.schema.json declarations for

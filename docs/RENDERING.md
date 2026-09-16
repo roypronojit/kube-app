@@ -206,7 +206,10 @@ must exist in the supplied images. The legacy Python model and its renderer
 retain their previous behavior; these additions apply to the public flat schema.
 ## Helm translation limits
 
-The current translator rejects digest images, init ports, multiple/non-TCP container
-ports, and Service types other than ClusterIP/LoadBalancer. Other runtime details above
+The current translator rejects digest images, init ports and multiple/non-TCP container
+ports. Supported Service types are ClusterIP, NodePort and LoadBalancer. NodePort
+leaves port allocation to Kubernetes. ExternalName, headless Services, explicit
+nodePort allocation, multiple Service ports and additional Service networking
+options are not exposed by the model. Other runtime details above
 describe Kubernetes behavior; Helm uses its existing values layout without arbitrary
 external-chart adaptation. See the [example workflows](../examples/README.md).

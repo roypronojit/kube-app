@@ -183,8 +183,8 @@ def _validate_supported(application: Application) -> None:
         if len(container.ports) > 1 or any(p.protocol != "TCP" for p in container.ports):
             unsupported.append("ports other than a single TCP port")
     if application.service:
-        if application.service.type not in ("ClusterIP", "LoadBalancer"):
-            unsupported.append("service.type other than ClusterIP/LoadBalancer")
+        if application.service.type not in ("ClusterIP", "NodePort", "LoadBalancer"):
+            unsupported.append("service.type other than ClusterIP/NodePort/LoadBalancer")
     if unsupported:
         raise NotImplementedError(
             "Helm values support Basic and Medium capabilities; unsupported: "

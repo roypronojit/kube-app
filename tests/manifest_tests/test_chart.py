@@ -27,6 +27,18 @@ HELM = shutil.which("helm")
 
 @unittest.skipUnless(HELM, "Helm is required for chart template tests")
 class BasicChartTests(unittest.TestCase):
+    def test_all_supported_service_types_are_consumed(self):
+        for service_type in ("ClusterIP", "NodePort", "LoadBalancer"):
+            with self.subTest(service_type=service_type):
+                data = self.application.model_dump(by_alias=True)
+                data["service"]["type"] = service_type
+                application = Application.model_validate(data)
+                self.values = HelmRenderer().render(application)
+                actual = next(doc for doc in self.render_documents() if doc["kind"] == "Service")
+                expected = next(doc for doc in KubernetesRenderer().render(application) if doc["kind"] == "Service")
+                self.assertEqual(actual["spec"], expected["spec"])
+                self.assertEqual(actual["spec"]["type"], service_type)
+
     def setUp(self):
         self.application = load_application(ROOT / "examples/basic/app.yaml")
         self.values = HelmRenderer().render(self.application)

@@ -92,7 +92,7 @@ class DiagnosticCliTests(unittest.TestCase):
                 if failure == "invalid-application":
                     self.source.write_text("name: worker\ncontainers: []\n")
                 if failure == "generation":
-                    data = dict(self.data, service={"port": 80, "type": "NodePort"})
+                    data = dict(self.data, containers=[{"name": "web", "image": "nginx@sha256:abcd"}])
                     self.source.write_text(yaml.safe_dump(data), encoding="utf-8")
                 if failure == "invalid-chart":
                     result = self.invoke("-f", "helm", "-c", str(self.chart / "absent"), "-o", str(destination))

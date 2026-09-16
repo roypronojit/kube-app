@@ -389,6 +389,10 @@ service:
   port: 8080
 ```
 
+Supported Service types are `ClusterIP`, `NodePort` and `LoadBalancer` in both
+Kubernetes manifests and Helm values. NodePort uses automatic Kubernetes allocation;
+explicit nodePort numbers and additional Service networking options are not exposed.
+
 Service options can also be specified:
 
 ```yaml

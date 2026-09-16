@@ -108,7 +108,7 @@ class CliOutputTests(unittest.TestCase):
                 elif failure == "missing-file":
                     data["secrets"][0]["file"] = "absent.env"
                 else:
-                    data["service"]["type"] = "NodePort"
+                    data["containers"][0]["image"] = "nginx@sha256:abcd"
                 self.environment.pop("ABSENT_TEST_TOKEN", None)
                 self.source.write_text(yaml.safe_dump(data), encoding="utf-8")
                 destination.write_bytes(b"existing output\n")
