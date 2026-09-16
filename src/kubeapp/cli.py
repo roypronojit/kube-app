@@ -1,11 +1,36 @@
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
 import yaml
 
-from kubeapp.renderers import KubernetesRenderer
+from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
+
+
+def _renderer_name(value: str) -> str:
+    aliases = {"kubernetes": "kubernetes", "k8s": "kubernetes", "k": "kubernetes",
+               "helm": "helm", "h": "helm"}
+    try:
+        return aliases[value]
+    except KeyError:
+        raise argparse.ArgumentTypeError(
+            "renderer must be kubernetes (k8s, k) or helm (h)"
+        ) from None
+
+
+def _render_helm(application, base_dir: Path) -> str:
+    values = HelmRenderer().render(application, base_dir)
+    chart = Path(__file__).resolve().parents[2] / "charts/kube-app"
+    result = subprocess.run(
+        ["helm", "template", "kube-app", str(chart), "-f", "-"],
+        input=yaml.safe_dump(values, sort_keys=False),
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode:
+        raise ValueError(result.stderr.strip() or "helm template failed")
+    return result.stdout
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,6 +65,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     render_parser.add_argument("-o", "--output", help="Write manifests to this file")
+    render_parser.add_argument(
+        "-r", "--renderer", type=_renderer_name, default="kubernetes",
+        metavar="RENDERER", help="Renderer: kubernetes (k8s, k; default) or helm (h)",
+    )
 
     return parser
 
@@ -61,10 +90,12 @@ def main() -> int:
             return 0
 
         try:
-            manifests = KubernetesRenderer().render(
-                application, Path(args.file).resolve().parent
-            )
-            rendered = yaml.safe_dump_all(manifests, sort_keys=False)
+            base_dir = Path(args.file).resolve().parent
+            if args.renderer == "helm":
+                rendered = _render_helm(application, base_dir)
+            else:
+                manifests = KubernetesRenderer().render(application, base_dir)
+                rendered = yaml.safe_dump_all(manifests, sort_keys=False)
             if args.output:
                 output = Path(args.output)
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +103,7 @@ def main() -> int:
             else:
                 print(rendered, end="")
 
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, NotImplementedError, subprocess.SubprocessError) as exc:
             print(f"Render failed:\n{exc}", file=sys.stderr)
             return 1
 

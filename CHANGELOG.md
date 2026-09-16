@@ -7,6 +7,19 @@ Increment `PATCH` when more than one release is made on the same day.
 For v0.2.0 development, entries are split by implementation step; the daily suffix orders
 these checkpoints and does not indicate a separately published release.
 
+## 2026.09.16.6 - [0.2.0]
+
+- Step 21: added render --renderer/-r selection. kubernetes, k8s, and k normalize
+  to kubernetes (the default); helm and h normalize to helm.
+- Both paths produce final Kubernetes YAML. The CLI runs HelmRenderer values through
+  the existing chart with helm template, preserving application-relative input paths
+  and stdout/--output behavior. Helm must be available on PATH.
+- Invalid renderer arguments exit 2; render failures exit 1 without writing partial
+  output. Added alias/default/option tests, Helm failure coverage, and a real Helm CLI
+  test for Advanced file inputs from a different working directory.
+- Validation: all 221 unittest tests passed; Helm lint passed. No schema, renderer,
+  example, or chart semantics changed.
+
 ## 2026.09.16.5 - [0.2.0]
 
 - Step 20: added complete semantic equivalence coverage for the unchanged Advanced

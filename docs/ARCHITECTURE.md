@@ -155,8 +155,14 @@ resource dictionaries. Renderers consume validated `Application` objects without
 mutating them and resolve file inputs relative to `base_dir`. Callers serialize
 and write the result.
 
-The CLI uses `KubernetesRenderer`, which delegates to the existing
+The CLI defaults to `KubernetesRenderer`, which delegates to the existing
 `kubeapp.manifests` implementation and returns ordered resource dictionaries.
+`render --renderer` (or `-r`) selects `kubernetes` (`k8s`, `k`) or `helm` (`h`);
+aliases normalize to canonical names. Both paths output final Kubernetes YAML,
+with existing `--output` support. The Helm path requires `helm` on PATH and runs
+`helm template` against the repository's `charts/kube-app` chart, passing resolved
+values through stdin. File inputs resolve relative to the application YAML.
+Validation/render failures return 1; invalid CLI arguments return 2.
 Existing manifest functions and legacy application support remain available.
 The model imports no renderer code.
 
@@ -181,8 +187,8 @@ substitution at render time, matching KubernetesRenderer. Pass the application
 YAML's parent directory as `base_dir`; the parser does not attach paths to the model.
 Resolved data uses the same values/chart structure as inline resources.
 Other unsupported Advanced capabilities
-remain unsupported and fail explicitly. Helm template
-execution in the application and CLI selection remain deferred. The chart consumes
+remain unsupported and fail explicitly. Helm template execution is owned by the
+CLI; HelmRenderer itself continues to return values. The chart consumes
 `replicaCount`, `containerName`, `ports`, and `service.targetPort`, and honors
 `service.enabled` and `serviceAccount.create` for Basic values.
 The legacy Helm-values helper remains compatibility code,
