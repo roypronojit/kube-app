@@ -11,12 +11,13 @@ import unittest
 import yaml
 
 from tests.semantic_helpers import assert_semantically_equal
-from .helpers import PROJECT_ROOT
+from .helpers import PROJECT_ROOT, temporary_chart
 
 
 @unittest.skipUnless(shutil.which("helm"), "Helm is required for CLI equivalence")
 class CliEquivalenceTests(unittest.TestCase):
     def setUp(self):
+        self.chart = temporary_chart(self)
         executable = "kube-app.exe" if os.name == "nt" else "kube-app"
         self.cli = Path(sys.executable).parent / executable
         self.assertTrue(self.cli.is_file(), "Install kube-app in the test environment")
@@ -26,6 +27,9 @@ class CliEquivalenceTests(unittest.TestCase):
         self.environment = {**os.environ, "CATALOG_API_KEY": "cli-example-key"}
 
     def invoke(self, source, *arguments, environment=None):
+        if any(arguments[index:index + 2] == ("-f", alias)
+               for index in range(len(arguments)) for alias in ("helm", "h")):
+            arguments = (*arguments, "--chart", str(self.chart))
         return subprocess.run(
             [str(self.cli), "render", str(source), *arguments],
             cwd=self.cwd, env=self.environment if environment is None else environment,

@@ -15,7 +15,7 @@ from kubeapp.cli import build_parser, main
 from kubeapp.parser import load_application
 from kubeapp.renderers import KubernetesRenderer
 
-from .helpers import PROJECT_ROOT
+from .helpers import PROJECT_ROOT, temporary_chart
 
 
 class ValidateCommandTests(unittest.TestCase):
@@ -82,6 +82,7 @@ class RenderContractTests(unittest.TestCase):
     """CLI contract checks using isolated inputs, independent of examples."""
 
     def setUp(self):
+        self.chart = temporary_chart(self)
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.base = Path(directory.name)
@@ -98,6 +99,10 @@ class RenderContractTests(unittest.TestCase):
         }), encoding="utf-8")
 
     def invoke(self, *arguments):
+        if any(arguments[index:index + 2] == ("-f", alias)
+               or arguments[index:index + 2] == ("--format", alias)
+               for index in range(len(arguments)) for alias in ("helm", "h")):
+            arguments = (*arguments, "--chart", str(self.chart))
         output, errors = io.StringIO(), io.StringIO()
         with (patch.object(sys, "argv", ["kube-app", "render", str(self.source), *arguments]),
               redirect_stdout(output), redirect_stderr(errors)):
@@ -205,6 +210,9 @@ class RenderContractTests(unittest.TestCase):
 
 
 class RenderCommandTests(unittest.TestCase):
+    def setUp(self):
+        self.chart = temporary_chart(self)
+
     def test_format_option_aliases_are_canonical(self):
         parser = build_parser()
         self.assertEqual(parser.parse_args(["render", "app.yaml"]).renderer, "kubernetes")
@@ -221,6 +229,8 @@ class RenderCommandTests(unittest.TestCase):
                 argv = ["kube-app", "render", str(source)]
                 if alias:
                     argv += ["-f", alias]
+                if alias in ("helm", "h"):
+                    argv += ["--chart", str(self.chart)]
                 output = io.StringIO()
                 with (
                     patch.object(sys, "argv", argv), redirect_stdout(output),
@@ -250,7 +260,8 @@ class RenderCommandTests(unittest.TestCase):
         source = PROJECT_ROOT / "examples/advanced/app.yaml"
         with tempfile.TemporaryDirectory() as directory:
             result = subprocess.run(
-                [sys.executable, "-m", "kubeapp", "render", str(source), "--format", "helm"],
+                [sys.executable, "-m", "kubeapp", "render", str(source), "--format", "helm",
+                 "--chart", str(self.chart)],
                 cwd=directory, capture_output=True, text=True, timeout=30,
                 env={**os.environ, "CATALOG_API_KEY": "cli-example-key",
                      "PYTHONPATH": str(PROJECT_ROOT / "src")},
@@ -274,7 +285,7 @@ class RenderCommandTests(unittest.TestCase):
                 options = {"side_effect": failure} if isinstance(failure, Exception) else {"return_value": failure}
                 with (
                     patch.object(sys, "argv", ["kube-app", "render", str(PROJECT_ROOT / "examples/basic/app.yaml"),
-                                               "-f", "h", "-o", str(destination)]),
+                                               "-f", "h", "--chart", str(self.chart), "-o", str(destination)]),
                     patch("kubeapp.cli.subprocess.run", **options),
                     redirect_stdout(output), redirect_stderr(errors),
                 ):

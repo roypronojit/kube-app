@@ -7,6 +7,7 @@ import yaml
 from pydantic import ValidationError
 
 from kubeapp.models import Application
+from kubeapp.chart_inspection import inspect_chart
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
 
@@ -74,6 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Backend: kubernetes | k8s | k (default: kubernetes), or helm | h (requires Helm on PATH)",
     )
     render_parser.add_argument("-n", "--name", help="Override the application name")
+    render_parser.add_argument(
+        "-c", "--chart", metavar="PATH",
+        help="External chart to inspect (required for Helm; not used for rendering yet)",
+    )
 
     return parser
 
@@ -81,6 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.command == "render":
+        if args.renderer == "helm" and args.chart is None:
+            parser.error("--chart is required for Helm format")
+        if args.renderer != "helm" and args.chart is not None:
+            parser.error("--chart is only supported for Helm format")
 
     if args.command in {"validate", "render"}:
         try:
@@ -110,6 +120,8 @@ def main() -> int:
         try:
             base_dir = Path(args.file).resolve().parent
             if args.renderer == "helm":
+                # Inspection returns structured notes; presentation is deferred.
+                inspect_chart(args.chart, application)
                 rendered = _render_helm(application, base_dir)
             else:
                 manifests = KubernetesRenderer().render(application, base_dir)
