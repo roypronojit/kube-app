@@ -9,6 +9,7 @@ from kubeapp.models import Application
 from kubeapp.chart_inspection import inspect_chart
 from kubeapp.renderers import HelmRenderer, KubernetesRenderer
 from kubeapp.parser import ApplicationParseError, load_application
+from kubeapp.value_mapping import compare_values
 
 
 def _format_name(value: str) -> str:
@@ -22,9 +23,10 @@ def _format_name(value: str) -> str:
         ) from None
 
 
-def _render_helm(application, base_dir: Path) -> str:
+def _render_helm(application, base_dir: Path, inspection) -> str:
     values = HelmRenderer().render(application, base_dir)
-    return yaml.safe_dump(values, sort_keys=False)
+    mapping = compare_values(values, inspection)
+    return yaml.safe_dump(mapping.values, sort_keys=False)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -112,8 +114,8 @@ def main() -> int:
             base_dir = Path(args.file).resolve().parent
             if args.renderer == "helm":
                 # Inspection returns structured notes; presentation is deferred.
-                inspect_chart(args.chart, application)
-                rendered = _render_helm(application, base_dir)
+                inspection = inspect_chart(args.chart, application)
+                rendered = _render_helm(application, base_dir, inspection)
             else:
                 manifests = KubernetesRenderer().render(application, base_dir)
                 rendered = yaml.safe_dump_all(manifests, sort_keys=False)

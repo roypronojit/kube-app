@@ -6,6 +6,23 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.16.13 - [0.2.0]
+
+- Helm architecture Step 4: added a declared values contract combining nested
+  values.yaml keys and values.schema.json properties into value paths.
+- Generated paths are supported when declared, unsupported when absent from an
+  explicit contract, or unknown when contract information is insufficient or schema
+  constructs remain unresolved. No fuzzy matching or chart-specific remapping occurs.
+- Added structured mapping diagnostics containing capability, generated path,
+  status, and reason without resolved Secret values. Mapping results retain existing
+  capability notes once; CLI diagnostic presentation remains deferred.
+- Preserved all generated values without filtering, along with Kubernetes behavior.
+  Arrays are compared as whole values; schema references/composition are not
+  resolved, and no JSON Schema validation is performed.
+- Validation: 33 focused tests passed using temporary fixtures through WSL;
+  scoped tracked-file whitespace checks passed. No full suite or example-based
+  tests were run. Examples, charts, and versions were unchanged.
+
 ## 2026.09.16.12 - [0.2.0]
 
 - Helm architecture Step 3: Helm format now emits Helm values YAML directly from

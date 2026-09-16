@@ -134,7 +134,8 @@ kind: 'PersistentVolumeClaim'
             ) as render:
                 self.assertEqual(self.invoke("-f", "h", option, str(self.chart)), (0, "existing Helm output\n", ""))
                 inspection.assert_called_once_with(str(self.chart), self.application)
-                render.assert_called_once_with(self.application, Path("app.yaml").resolve().parent)
+                self.assertEqual(render.call_args.args[:2], (self.application, Path("app.yaml").resolve().parent))
+                self.assertEqual(render.call_args.args[2].path, self.chart.resolve())
 
     def test_invalid_chart_preserves_output_and_does_not_render(self):
         destination = self.base / "output.yaml"
