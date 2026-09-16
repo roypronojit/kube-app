@@ -27,6 +27,24 @@ storage:
 containers:
   - name: catalog
     image: registry.example.com/catalog:1.4.2
+    imagePullPolicy: IfNotPresent
+
+    ports:
+      - name: http
+        port: 8080
+
+    healthCheck:
+      ready:
+        path: /health/ready
+        port: 8080
+        initialDelaySeconds: 5
+        frequencySeconds: 10
+
+      live:
+        path: /health/live
+        port: 8080
+        initialDelaySeconds: 10
+        frequencySeconds: 10
 
     environment:
       APP_ENV: production
@@ -61,3 +79,4 @@ containers:
 service:
   type: LoadBalancer
   port: 8080
+  targetPort: http

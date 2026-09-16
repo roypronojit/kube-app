@@ -1,25 +1,69 @@
 import copy
-import io
 import os
-import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
 import yaml
 from pydantic import ValidationError
 
-from kubeapp.cli import main
 from kubeapp.manifests import application_to_kubernetes_manifests
 from kubeapp.models import Application
 from kubeapp.parser import load_application
 
-ROOT = Path(__file__).resolve().parents[1]
+from .helpers import PROJECT_ROOT as ROOT, _container, _pod_spec
 
 
 class IntentTests(unittest.TestCase):
+    def test_scalar_values_render_as_strings(self):
+        values = {"BOOL": True, "FALSE": False, "INT": 3, "FLOAT": 0.5, "STRING": "003"}
+        expected = {"BOOL": "true", "FALSE": "false", "INT": "3", "FLOAT": "0.5", "STRING": "003"}
+        manifests = self.render({
+            "name": "worker",
+            "containers": [{"name": "worker", "image": "worker:1", "environment": values}],
+            "configuration": [{"name": "settings", "data": values}],
+            "secrets": [{"name": "credentials", "data": values}],
+        })
+        self.assertEqual(next(m for m in manifests if m["kind"] == "ConfigMap")["data"], expected)
+        secret = next(m for m in manifests if m["kind"] == "Secret")
+        self.assertEqual(secret["stringData"], expected)
+        self.assertEqual(secret["type"], "Opaque")
+        self.assertEqual(_container(manifests)["env"], [
+            {"name": key, "value": value} for key, value in expected.items()
+        ])
+
+    def test_fractional_cpu_and_equal_resource_bounds(self):
+        manifests = self.render({
+            "name": "worker", "containers": [{
+                "name": "worker", "image": "worker:1",
+                "resources": {"cpu": {"min": 0.5, "max": 0.5}},
+            }],
+        })
+        self.assertEqual(_container(manifests)["resources"], {
+            "requests": {"cpu": "0.5"}, "limits": {"cpu": "0.5"},
+        })
+
+    def test_different_applications_name_their_own_claims(self):
+        names = []
+        for name in ("catalog", "worker"):
+            data = copy.deepcopy(self.data)
+            data["name"] = name
+            manifests = self.render(data)
+            claim = next(m for m in manifests if m["kind"] == "PersistentVolumeClaim")
+            names.append(claim["metadata"]["name"])
+            volume = next(v for v in _pod_spec(manifests)["volumes"] if "persistentVolumeClaim" in v)
+            self.assertEqual(volume["persistentVolumeClaim"]["claimName"], names[-1])
+        self.assertEqual(names, ["catalog-data", "worker-data"])
+
+    def test_read_only_access_mode_does_not_change_mount_flag(self):
+        self.data["storage"]["accessModes"] = ["ReadOnlyMany"]
+        manifests = self.render()
+        claim = next(m for m in manifests if m["kind"] == "PersistentVolumeClaim")
+        self.assertEqual(claim["spec"]["accessModes"], ["ReadOnlyMany"])
+        mount = next(m for m in _container(manifests)["volumeMounts"] if m["mountPath"] == "/data")
+        self.assertNotIn("readOnly", mount)
+
     def setUp(self):
         self.data = yaml.safe_load((ROOT / "examples/medium/app.yaml").read_text())
 
@@ -30,12 +74,6 @@ class IntentTests(unittest.TestCase):
 
     def test_medium_output_and_resource_wiring(self):
         manifests = self.render()
-        self.assertEqual(
-            manifests,
-            list(
-                yaml.safe_load_all((ROOT / "examples/medium/rendered.yaml").read_text())
-            ),
-        )
         config, secret, claim, deployment, service = manifests
         self.assertEqual(config["data"], {"APP_ENV": "production", "LOG_LEVEL": "info"})
         self.assertEqual(secret["stringData"]["DB_PORT"], "5432")
@@ -67,6 +105,25 @@ class IntentTests(unittest.TestCase):
             ["/etc/catalog", "/etc/catalog/secrets", "/data"],
         )
 
+    def test_all_checked_in_examples_match_renderer(self):
+        with patch.dict(os.environ, {"CATALOG_API_KEY": "example-api-key"}):
+            for name in ("basic", "medium", "advanced"):
+                with self.subTest(example=name):
+                    base = ROOT / "examples" / name
+                    manifests = application_to_kubernetes_manifests(
+                        load_application(base / "app.yaml"), base
+                    )
+                    self.assertEqual(
+                        manifests,
+                        list(yaml.safe_load_all((base / "rendered.yaml").read_text())),
+                    )
+                    pod = next(m for m in manifests if m["kind"] == "Deployment")[
+                        "spec"
+                    ]["template"]["spec"]
+                    self.assertNotIn("securityContext", pod)
+                    for container in pod["containers"] + pod.get("initContainers", []):
+                        self.assertNotIn("securityContext", container)
+
     def test_defaults_and_zero_replicas(self):
         data = {
             "name": "worker",
@@ -88,6 +145,7 @@ class IntentTests(unittest.TestCase):
             lambda d: d["containers"][0]["configuration"][0].update(name="missing"),
             lambda d: d["containers"][0]["secrets"][0].update(name="missing"),
             lambda d: d["containers"][0]["mounts"][2].update(storage="missing"),
+            lambda d: d.pop("storage"),
             lambda d: d["containers"][0]["mounts"][0].update(secret="catalog-db"),
             lambda d: d["containers"][0]["mounts"][0].update(path="relative"),
             lambda d: d["containers"][0]["configuration"][0].update({"as": "files"}),
@@ -133,7 +191,7 @@ class IntentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Cannot read resource file"):
                 application_to_kubernetes_manifests(app, base)
             (base / "config.properties").write_text(
-                "# comment\nKEY=${TEST_CONFIG}\nEMPTY=\nURL=a=b\n"
+                "# comment\n  ! another comment\n\n  KEY = ${TEST_CONFIG}  \nEMPTY=\nURL=a=b\n"
             )
             with patch.dict(os.environ, {"TEST_CONFIG": "resolved"}):
                 result = application_to_kubernetes_manifests(app, base)
@@ -149,23 +207,3 @@ class IntentTests(unittest.TestCase):
                 (base / "config.properties").write_text(content)
                 with self.assertRaisesRegex(ValueError, "Invalid or duplicate"):
                     application_to_kubernetes_manifests(app, base)
-
-    def test_failed_render_preserves_output_and_hides_secret_values(self):
-        with tempfile.TemporaryDirectory() as directory:
-            base = Path(directory)
-            self.data["secrets"][0]["data"]["DB_PASSWORD"] = {
-                "invalid": "private-value"
-            }
-            source, output = base / "app.yaml", base / "output.yaml"
-            source.write_text(yaml.safe_dump(self.data))
-            output.write_text("existing")
-            errors = io.StringIO()
-            with (
-                patch.object(
-                    sys, "argv", ["kube-app", "render", str(source), "-o", str(output)]
-                ),
-                redirect_stderr(errors),
-            ):
-                self.assertEqual(main(), 1)
-            self.assertNotIn("private-value", errors.getvalue())
-            self.assertEqual(output.read_text(), "existing")

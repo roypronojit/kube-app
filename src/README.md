@@ -17,9 +17,14 @@ Installation also exposes the equivalent `kube-app` command.
 | `kubeapp/__main__.py` | Entry point for `python -m kubeapp` |
 | `kubeapp/cli.py` | Argument parsing, validate/render commands, output and error handling |
 | `kubeapp/parser.py` | YAML loading and application validation; `ApplicationParseError` |
-| `kubeapp/models.py` | Application schema, defaults, validation, and compatibility models |
-| `kubeapp/manifests.py` | Kubernetes manifest rendering, file inputs, and environment substitution |
+| `kubeapp/models/` | Application schema and compatibility exports; domains split across `application`, `container`, `configuration`, and `common` |
+| `kubeapp/manifests/` | Rendering entry point and compatibility exports; `deployment`, `containers`, `resources`, and `common` handle resource assembly |
 | `kubeapp/generators.py` | Compatibility code for the deferred Helm values renderer |
+
+Model modules depend on shared types and domain models; application-level validation
+combines them. The renderer entry point preserves resource ordering, while deployment
+and container assembly are separate from ConfigMap, Secret, PVC, and Service rendering.
+Existing imports from `kubeapp.models` and `kubeapp.manifests` remain supported.
 
 The current rendering path is:
 
@@ -48,3 +53,7 @@ Keep schema validation in the model, file loading in the parser, and resource
 translation in the renderer. See [architecture](../docs/ARCHITECTURE.md),
 [rendering semantics](../docs/RENDERING.md), and the [test guide](../tests/README.md).
 Generated `*.egg-info/` and `__pycache__/` directories are development artifacts.
+
+
+Version 0.1.1 adds container ports, image pull policy, HTTP health probes,
+and command/args. See [runtime configuration](../docs/RENDERING.md#runtime-configuration-v011).

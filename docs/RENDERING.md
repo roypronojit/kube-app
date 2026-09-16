@@ -74,3 +74,86 @@ Run tests with Python 3.11 or later:
 python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
+
+## Runtime configuration (v0.1.1)
+
+Each application container supports named ports, an image pull policy, process
+overrides, and HTTP health checks:
+
+```yaml
+containers:
+  - name: app
+    image: registry.example.com/app:1
+    imagePullPolicy: IfNotPresent
+    ports:
+      - name: http
+        port: 8080
+        protocol: TCP
+    command: ["/app/server"]
+    args: ["--port", "8080"]
+    healthChecks:
+      ready:
+        path: /health/ready
+        port: http
+      live:
+        path: /health/live
+        port: http
+        initialDelaySeconds: 10
+      startup:
+        path: /health/startup
+        port: http
+        failureThreshold: 30
+service:
+  port: 80
+  targetPort: http
+```
+
+Ports render as `containerPort` entries even without a service. Names are unique
+within each container, start with a lowercase letter, contain lowercase letters,
+digits or hyphens, end with a letter or digit, and have at most 15 characters.
+Port numbers are integers from 1 through 65535. Protocol defaults to TCP; UDP
+and SCTP are also accepted. Duplicate number/protocol pairs are rejected.
+
+Services remain TCP. `service.targetPort` accepts a declared TCP port name or
+number. If omitted, it selects the sole declared TCP container port; multiple
+TCP ports require an explicit target. With no declared ports it defaults to
+`service.port`. When the selected container declares
+ports, the target must match one of them. Without declared ports, a numeric
+target is inferred as a container port named `http`, preserving existing
+service-only inputs. A named target requires an explicit declaration.
+`service.container` selects the target when there are multiple containers.
+
+`imagePullPolicy` accepts `Always`, `IfNotPresent` (the platform default,
+including untagged and latest images), or `Never`. `command` and `args` are
+optional nonempty string lists; omitted fields retain image defaults. The
+command executable cannot be blank. Empty individual arguments are allowed.
+Values are passed through without shell execution or environment substitution
+by Kube-App; request a shell explicitly if needed.
+
+`healthChecks` (also accepted as `healthCheck` or the original `health`) uses
+`ready`, `live`, and `startup`; `readiness` and `liveness` remain accepted aliases.
+`frequencySeconds` maps to Kubernetes `periodSeconds`; the original
+`periodSeconds` spelling is also accepted.
+
+Health checks are optional and render to `readinessProbe`, `livenessProbe`,
+and `startupProbe` with `httpGet`. A probe requires an absolute HTTP path and
+a numeric port or a declared TCP port name on that container. Numeric probe
+ports need no port declaration. Timing defaults are `initialDelaySeconds: 0`,
+`periodSeconds: 10`, `timeoutSeconds: 1`, `failureThreshold: 3`, and
+`successThreshold: 1`. Values must be integers; only initial delay may be zero.
+Liveness and startup success thresholds must equal 1. An empty `health` block
+is rejected. Init containers support ports, pull policy, command and args, but
+cannot define health probes. HTTP checks are the supported probe type in this
+release. See [Kubernetes probe semantics](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/).
+
+### Security context
+
+The renderer does not inject pod or container `securityContext` settings.
+The public schema currently has no security context fields, so none are emitted
+for application or init containers.
+
+Basic uses unprivileged NGINX listening on 8080 behind service port 80. Medium
+and Advanced use illustrative application images; supply compatible images and
+implement the Medium health endpoints before deploying. Advanced command paths
+must exist in the supplied images. The legacy Python model and its renderer
+retain their previous behavior; these additions apply to the public flat schema.

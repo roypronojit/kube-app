@@ -82,7 +82,7 @@ class ApplicationToHelmValuesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             application_to_helm_values(application)
 
-    def test_preserves_registry_port_in_untagged_image(self) -> None:
+    def test_preserves_registry_port_with_and_without_tag(self) -> None:
         application = Application.model_validate(
             {
                 "apiVersion": "kubeapp.dev/v1alpha1",
@@ -92,12 +92,10 @@ class ApplicationToHelmValuesTests(unittest.TestCase):
             }
         )
 
-        values = application_to_helm_values(application)
-
-        self.assertEqual(
-            values["image"],
-            {
-                "repository": "registry.example.com:5000/catalog",
-                "tag": "latest",
-            },
-        )
+        for suffix, tag in (("", "latest"), (":1.2.3", "1.2.3"), (":release-1_rc.2", "release-1_rc.2")):
+            with self.subTest(suffix=suffix):
+                application.spec.image = "registry.example.com:5000/catalog" + suffix
+                values = application_to_helm_values(application)
+                self.assertEqual(values["image"], {
+                    "repository": "registry.example.com:5000/catalog", "tag": tag,
+                })

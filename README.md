@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 0.1.0 · **Release status:** Development Preview
+> **Version:** 0.1.1 · **Release status:** Development Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 
@@ -43,7 +43,11 @@ replicas: 2
 
 containers:
   - name: hello-world
-    image: nginx:1.27
+    image: nginxinc/nginx-unprivileged:1.27
+    imagePullPolicy: IfNotPresent
+    ports:
+      - name: http
+        port: 8080
 
     resources:
       cpu:
@@ -55,6 +59,7 @@ containers:
 
 service:
   port: 80
+  targetPort: http
 ```
 
 Kube-App validates the application definition, applies platform defaults, and renders the required Kubernetes manifests.
@@ -174,7 +179,11 @@ replicas: 2
 
 containers:
   - name: hello-world
-    image: nginx:1.27
+    image: nginxinc/nginx-unprivileged:1.27
+    imagePullPolicy: IfNotPresent
+    ports:
+      - name: http
+        port: 8080
 
     resources:
       cpu:
@@ -186,6 +195,7 @@ containers:
 
 service:
   port: 80
+  targetPort: http
 ```
 
 See [`examples/basic`](examples/basic/).
@@ -513,18 +523,15 @@ Current focus:
 
 ## Platform Defaults and Security
 
-Future work may introduce platform-owned defaults such as:
+The renderer does not inject pod or container security contexts that are absent
+from `app.yaml`. The public schema currently has no security context fields.
 
-* container security defaults
-* non-root execution
-* dropped Linux capabilities
-* seccomp profiles
-* health probes
-* rollout strategies
-* standard labels
-* disruption protection
+Container-level HTTP readiness, liveness, and startup probes are configured under
+`health`. Container `ports`, `imagePullPolicy`, and `command` / `args` are also
+supported. See [runtime configuration](docs/RENDERING.md#runtime-configuration-v011)
+for syntax, defaults, validation, and compatibility details.
 
-These should remain platform concerns wherever possible rather than forcing application developers to understand Kubernetes implementation details.
+Rollout strategies and disruption protection remain future work.
 
 ## Policy as Code
 
@@ -635,11 +642,9 @@ kubeApp/
 │
 ├── tests/
 │   ├── README.md
-│   ├── test_cli.py
-│   ├── test_intent.py
-│   ├── test_models.py
-│   ├── test_manifests.py
-│   └── test_generators.py
+│   ├── cli_tests/
+│   ├── model_tests/
+│   └── manifest_tests/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md

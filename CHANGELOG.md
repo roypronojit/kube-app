@@ -5,6 +5,34 @@ All notable changes to Kube-App are documented in this file.
 Versions use Calendar Versioning (CalVer) in the `YYYY.MM.DD.PATCH` format.
 Increment `PATCH` when more than one release is made on the same day.
 
+## 2026.09.14.2 - [0.1.1]
+
+### Added
+
+- Container HTTP readiness, liveness, and startup probes with timing validation.
+- Named container ports and service targetPort selection.
+- Container and init command/args overrides and imagePullPolicy.
+- Runtime validation and rendering regression tests.
+
+### Changed
+
+- Replaced `src/kubeapp/models.py` with a `models/` package separating
+  application validation, container runtime settings, configuration/storage,
+  and shared types and validators.
+- Replaced `src/kubeapp/manifests.py` with a `manifests/` package separating
+  rendering orchestration, deployments, containers, supporting resources,
+  and common helpers. Package exports preserve existing Python imports.
+- Split `tests/test_models.py` and `tests/test_manifests.py` into
+  `tests/model_tests/` and `tests/manifest_tests/`, grouped by responsibility
+  with shared fixture helpers and standard unittest discovery.
+- Updated source and test directory guides. The directory refactor preserves
+  application schemas, rendered Kubernetes output, and test behavior;
+  all 145 tests pass.
+- Basic demonstrates ports and pull policy using unprivileged NGINX; Medium
+  demonstrates health probes; Advanced demonstrates command/args.
+- Regenerated all example manifests and updated runtime documentation.
+- Updated Python package version to 0.1.1.
+
 ## 2026.09.14.1 - [0.1.0]
 
 ### Changed

@@ -76,6 +76,12 @@ spec:
       initContainers:
       - name: database-migration
         image: registry.example.com/catalog-migrations:1.4.2
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/migrate
+        args:
+        - --database
+        - catalog
         envFrom:
         - secretRef:
             name: catalog-db
@@ -85,6 +91,39 @@ spec:
       containers:
       - name: catalog
         image: registry.example.com/catalog:1.4.2
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/catalog
+        args:
+        - --port
+        - '8080'
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 1
         ports:
         - name: http
           containerPort: 8080
@@ -121,6 +160,7 @@ spec:
           mountPath: /data
       - name: metrics
         image: registry.example.com/catalog-metrics:1.0
+        imagePullPolicy: IfNotPresent
         env:
         - name: METRICS_PORT
           value: '9090'

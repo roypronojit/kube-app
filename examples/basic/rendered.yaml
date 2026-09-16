@@ -16,10 +16,11 @@ spec:
     spec:
       containers:
       - name: hello-world
-        image: nginx:1.27
+        image: nginxinc/nginx-unprivileged:1.27
+        imagePullPolicy: IfNotPresent
         ports:
         - name: http
-          containerPort: 80
+          containerPort: 8080
           protocol: TCP
         resources:
           requests:
