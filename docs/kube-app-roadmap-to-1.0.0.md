@@ -97,13 +97,13 @@ in RPM while the container uses `pip install`.
 
 | Version | Primary milestone | Acceptance outcome | Timing |
 | --- | --- | --- | --- |
-| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | Sep 21, 2026 |
-| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | Sep 28, 2026 |
-| **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | Oct 05, 2026 |
-| **v0.5.0** | DEB + RPM | Native Linux installation into PATH | Oct 12, 2026 |
-| **v0.6.0** | Release hardening | All formats built/tested/published consistently; checksums, metadata, security and clean-environment tests | Oct 17–26, 2026 |
-| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; fixes only unless release-blocking | Oct 26–Nov 02, 2026 |
-| **v1.0.0** | First product deliverable | Linux-first, CI/CD-first product with repeatable automated releases | Nov 02–09, 2026 |
+| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | Sep 21. 2026 |
+| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | Sep 28. 2026 |
+| **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | Oct 05. 2026 |
+| **v0.5.0** | DEB + RPM | Native Linux installation into PATH | Oct 12. 2026 |
+| **v0.6.0** | Release hardening | All formats built/tested/published consistently; checksums, metadata, security and clean-environment tests | Oct 17–26. 2026 |
+| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; fixes only unless release-blocking | Oct 26–Nov 02. 2026 |
+| **v1.0.0** | First product deliverable | Linux-first, CI/CD-first product with repeatable automated releases | Nov 02–09. 2026 |
 
 Versions are **quality gates, not calendar gates**.
 
@@ -461,19 +461,19 @@ intermediate implementation.
 ## 16. Working schedule
 
 ``` text
-Sep 21, 2026     v0.2.0
+Sep 21. 2026     v0.2.0
                  |
-Sep 28, 2026     v0.3.0  Standalone executable + release foundation
+Sep 28. 2026     v0.3.0  Standalone executable + release foundation
                  |
-Oct 05, 2026     v0.4.0  OCI image
+Oct 05. 2026     v0.4.0  OCI image
                  |
-Oct 12, 2026     v0.5.0  DEB + RPM
+Oct 12. 2026     v0.5.0  DEB + RPM
                  |
-Oct 26, 2026     v0.6.0  Release hardening
+Oct 26. 2026     v0.6.0  Release hardening
                  |
 Nov 02. 2026     v1.0.0-rc.1
                  |
-Nov 09, 2026     v1.0.0
+Nov 09. 2026     v1.0.0
 ```
 
 **Working target:** approximately six weeks after v0.2.0, with a seventh
