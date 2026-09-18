@@ -233,3 +233,10 @@ Make incremental changes and preserve the existing architecture.
 
 Version 0.1.1 adds container ports, image pull policy, HTTP health probes,
 and command/args. See [runtime configuration](../docs/RENDERING.md#runtime-configuration-v011).
+
+## v0.3.0 distribution boundary
+
+The standalone Linux executable wraps the existing module entry point and bundles
+its runtime dependencies. Inputs and charts remain external; format selection and
+output/diagnostic semantics are unchanged. Packaging and tag-based publication are
+separate from application modeling and rendering; see [distribution](DISTRIBUTION.md).

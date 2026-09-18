@@ -96,3 +96,10 @@ Empty optional resources mappings are omitted for application and init container
 Explicit empty ports lists remain because they disable chart defaults; populated
 resources and intentional enable/create flags are preserved. The reference chart
 declares supported optional paths in values.schema.json without activating defaults.
+
+## Standalone build boundary
+
+`scripts/build_linux.py` packages `kubeapp/__main__.py` and its runtime imports with
+PyInstaller. `scripts/smoke_binary.py` tests the actual copied executable against
+external inputs. No renderer behavior changes for frozen execution. Build tooling
+lives in an isolated environment; see [distribution](../docs/DISTRIBUTION.md).

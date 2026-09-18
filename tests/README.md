@@ -34,3 +34,12 @@ established semantic normalization, never to equate public Helm values with mani
 Run `helm lint charts/kube-app` separately when validating the reference chart.
 The complete suite must retain meaningful model, renderer, security, file input,
 immutability and failure-preservation coverage. No real credentials belong in tests.
+
+## Packaged executable gate (v0.3.0)
+
+`packaging_tests/test_release.py` verifies version/tag guards in the standard suite.
+After building, run `scripts/smoke_binary.py` with the versioned artifact path. It
+tests a copied ELF with an isolated PATH/cwd and invalid host Python paths. CI also
+runs this gate inside Ubuntu 22.04 with no Python, pip or Helm. The Python smoke
+driver is test tooling outside the tested runtime. See [distribution](../docs/DISTRIBUTION.md)
+for build commands, the optional local Docker gate and tag publishing behavior.

@@ -6,6 +6,29 @@ Release versions match the Python package and chart. Dated development checkpoin
 use `YYYY.MM.DD.PATCH`; the daily suffix orders checkpoints, not published releases.
 The implementation history below is intentionally retained for traceability.
 
+## 2026.09.18.1 - [0.3.0]
+
+- Added a standalone Linux x86_64 executable built with pinned PyInstaller and
+  runtime dependencies. CPython and application dependencies are bundled; app.yaml,
+  referenced files and external charts remain external. Rendering behavior and CLI
+  flags are unchanged, and Helm values generation still needs no Helm executable.
+- Added an isolated local build script with version/tag guards and deterministic
+  binary/checksum filenames. Updated package/runtime/reference-chart metadata to
+  0.3.0 and documented installation, native builds, glibc/zlib and temporary-directory
+  requirements, and Linux-only scope.
+- Added reusable GitHub Actions build/test/smoke gates, read-only PR/branch CI,
+  and tag-only release publishing. Publishing reuses the tested binary, verifies
+  its SHA256, and uploads the executable plus checksum; it does not create tags.
+- Packaged smoke tests copy the ELF outside the checkout and cover help, validation,
+  both formats/aliases, name/output options, app-relative inputs, substitution,
+  diagnostics, chart failures and output preservation with an isolated PATH and
+  invalid host Python paths. CI additionally runs in a Python/pip/Helm-free container.
+- Local verification: 265 unittest tests and packaged-binary smoke tests passed;
+  archive inspection confirmed no repository inputs or build/test tools were bundled.
+  Built on Oracle Linux 9.4 WSL x86_64 (glibc 2.34); official CI targets Ubuntu 22.04.
+  The local Docker daemon was unavailable, so the container gate and GitHub publishing
+  require verification in CI before tagging. No tag or GitHub Release was created.
+
 ## 2026.09.16.17 - [0.2.0]
 
 - NodePort completeness review: the Application model, Kubernetes renderer and

@@ -1,0 +1,41 @@
+name: Release Linux executable
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      release-tag: ${{ github.ref_name }}
+  publish:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kube-app-linux-x86_64
+          path: dist
+      - name: Verify checksum and publish tested files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          version="${RELEASE_TAG#v}"
+          binary="kube-app-${version}-linux-x86_64"
+          sha256sum --check "${binary}.sha256"
+          gh release create "$RELEASE_TAG" "$binary" "${binary}.sha256" \
+            --verify-tag --title "kube-app $RELEASE_TAG" --generate-notes

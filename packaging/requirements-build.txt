@@ -1,0 +1,13 @@
+# Build-only tools plus pinned runtime dependencies for Linux release builds.
+pyinstaller==6.22.0
+pyinstaller-hooks-contrib==2026.7
+altgraph==0.17.5
+packaging==26.3
+setuptools==79.0.1
+wheel==0.45.1
+pydantic==2.13.5
+pydantic-core==2.46.5
+PyYAML==6.0.3
+annotated-types==0.8.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4

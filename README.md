@@ -1,6 +1,6 @@
 # Kube-App
 
-> **Version:** 0.2.0 · **Release status:** Development Preview
+> **Version:** 0.3.0 · **Release status:** Development Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 
@@ -96,7 +96,8 @@ For architectural details, see:
 
 ## Requirements
 
-Development currently requires:
+For standalone Linux use, see [Distribution](#distribution); no Python install is needed.
+Development from source requires:
 
 * Python 3.11 or later
 * pip
@@ -490,20 +491,20 @@ uses only the chart explicitly supplied with --chart and never executes Helm.
 
 # Distribution
 
-Kube-App currently runs as a Python application during development.
+v0.3.0 adds a standalone Linux x86_64 executable containing the Python runtime and
+application dependencies. Users need no host Python, pip, virtualenv or Helm for
+validation or generation. app.yaml, referenced files and supplied charts remain external.
 
-The intended end-user experience is a standalone CLI:
+Download the versioned binary and SHA256 file from a published GitHub Release,
+verify the checksum, then install the executable as `kube-app`. Official builds
+use Ubuntu 22.04 (glibc 2.35 baseline); Alpine/musl and other CPU architectures are
+not supported. One-file extraction requires a suitable writable temporary directory.
 
-```sh
-kube-app validate app.yaml
-kube-app render app.yaml
-```
-
-End users should eventually **not need to install Python, Pydantic, PyYAML, or other runtime dependencies**.
-
-Standalone packaging is intentionally deferred until the core application model and CLI stabilize.
-
----
+See [standalone installation, local builds and release gates](docs/DISTRIBUTION.md)
+for exact commands and runtime constraints. PR/branch CI runs tests, builds and
+smokes the real executable without publishing; matching version tags trigger the
+same gates followed by a binary/checksum GitHub Release. No release is created by
+ordinary CI or by local build commands.
 
 # Roadmap
 
@@ -531,6 +532,12 @@ Implemented foundation:
 * Kubernetes manifests or Helm values from one application specification
 * Explicit external-chart inspection, declared value contracts and non-fatal diagnostics
 * Name overrides, separate YAML/diagnostic streams and preserved output on failure
+
+## v0.3.0 Standalone Linux packaging
+
+* One-file Linux x86_64 executable with bundled runtime dependencies
+* PR/branch build and packaged smoke gates
+* Tag-driven binary and SHA256 publication after verification
 
 ## Platform Defaults and Security
 
