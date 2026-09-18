@@ -6,17 +6,20 @@ on:
       release-tag:
         type: string
         default: ''
+    outputs:
+      artifact-id:
+        description: Binary and checksum artifact validated by the smoke job
+        value: ${{ jobs.build-linux.outputs.artifact-id }}
 
 permissions:
   contents: read
 
 jobs:
-  linux:
+  test:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
       PYTHONDONTWRITEBYTECODE: '1'
-      RELEASE_TAG: ${{ inputs.release-tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,15 +41,40 @@ jobs:
       - name: Unit tests
         # Helm is only an internal reference-chart test tool, never a runtime dependency.
         run: .tools/package-venv/bin/python -m unittest discover -s tests -v
-      - name: Build and checksum
-        run: .tools/package-venv/bin/python scripts/build_linux.py --tag "$RELEASE_TAG"
-      - name: Smoke-test actual executable
+
+  build-linux:
+    needs: test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      RELEASE_TAG: ${{ inputs.release-tag }}
+    outputs:
+      binary: ${{ steps.build.outputs.binary }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11.16'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: packaging/requirements-build.txt
+      - name: Install pinned build and runtime dependencies
         run: |
+          python -m venv .tools/package-venv
+          .tools/package-venv/bin/python -m pip install -r packaging/requirements-build.txt
+          .tools/package-venv/bin/python -m pip install --no-deps --no-build-isolation -e .
+      - name: Build and checksum
+        id: build
+        run: |
+          .tools/package-venv/bin/python scripts/build_linux.py --tag "$RELEASE_TAG"
           version=$(.tools/package-venv/bin/python -c 'from kubeapp import __version__; print(__version__)')
-          .tools/package-venv/bin/python scripts/smoke_binary.py "dist/kube-app-${version}-linux-x86_64"
-          docker pull ubuntu:22.04
-          .tools/package-venv/bin/python scripts/smoke_binary.py "dist/kube-app-${version}-linux-x86_64" --container-image ubuntu:22.04
-      - name: Upload tested artifact (not a release)
+          echo "binary=kube-app-${version}-linux-x86_64" >> "$GITHUB_OUTPUT"
+      - name: Upload binary and checksum for smoke testing
+        id: upload
         uses: actions/upload-artifact@v7
         with:
           name: kube-app-linux-x86_64
@@ -55,3 +83,37 @@ jobs:
             dist/kube-app-*-linux-x86_64.sha256
           if-no-files-found: error
           retention-days: 14
+
+  smoke-linux:
+    needs: build-linux
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      BINARY: ${{ needs.build-linux.outputs.binary }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11.16'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: packaging/requirements-build.txt
+      - name: Install pinned smoke-driver dependencies
+        run: |
+          python -m venv .tools/package-venv
+          .tools/package-venv/bin/python -m pip install -r packaging/requirements-build.txt
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build-linux.outputs.artifact-id }}
+          path: dist
+          merge-multiple: true
+          # The smoke driver requires a valid SHA256 before executing the binary.
+          digest-mismatch: warn
+      - name: Smoke-test downloaded executable
+        run: |
+          .tools/package-venv/bin/python scripts/smoke_binary.py "dist/$BINARY"
+          docker pull ubuntu:22.04
+          .tools/package-venv/bin/python scripts/smoke_binary.py "dist/$BINARY" --container-image ubuntu:22.04

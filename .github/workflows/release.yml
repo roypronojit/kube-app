@@ -25,8 +25,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: kube-app-linux-x86_64
+          artifact-ids: ${{ needs.verify.outputs.artifact-id }}
           path: dist
+          merge-multiple: true
           # Preserve v4 behavior; the next step still requires a valid SHA256.
           digest-mismatch: warn
       - name: Verify checksum and publish tested files
