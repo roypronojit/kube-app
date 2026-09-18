@@ -2,7 +2,7 @@
 
 > From architecture milestone to a Linux-first, CI/CD-first product.
 
-**Baseline:** v0.2.0 target release: September 21, 2026.\
+**Baseline:** v0.2.0 release: September 18, 2026.\
 **Target:** v1.0.0 target release: November 2, 2026, subject to quality gates.
 
 ## 1. Product direction
@@ -103,7 +103,7 @@ in RPM while the container uses `pip install`.
 
 | Version | Primary milestone | Acceptance outcome | Target date |
 | --- | --- | --- | --- |
-| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | **Sep 21, 2026** |
+| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | **Sep 18, 2026** |
 | **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | **Sep 28, 2026** |
 | **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | **Oct 5, 2026** |
 | **v0.5.0** | DEB + RPM | Native Linux installation into PATH; packaging automation complete | **Oct 12, 2026** |
@@ -462,7 +462,7 @@ intermediate implementation.
 ## 15. Working schedule
 
 ``` text
-Sep 21, 2026     v0.2.0  Architecture & QA
+Sep 18, 2026     v0.2.0  Architecture & QA
                      |
 Sep 28, 2026     v0.3.0  Standalone executable + release foundation
                      |
