@@ -18,9 +18,10 @@ engineering, Linux distribution, release automation, and product
 lifecycle thinking.
 
 **v0.2.0 establishes the application architecture.** The journey from
-**v0.3.0 to v1.0.0 is primarily productization**: turning the tested
+**v0.3.x to v1.0.0 is primarily productization**: turning the tested
 Python application into a repeatably built, tested, packaged, and
-distributable Linux CLI.
+distributable Linux CLI. The v0.3.x versions are development checkpoints
+for one distribution milestone and are released together after v0.3.2.
 
 ## 2. Architectural baseline at v0.2.0
 
@@ -103,30 +104,44 @@ in RPM while the container uses `pip install`.
 
 | Version | Primary milestone | Acceptance outcome | Target date |
 | --- | --- | --- | --- |
-| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | **Sep 18, 2026** |
-| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | **Sep 28, 2026** |
-| **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | **Oct 5, 2026** |
-| **v0.5.0** | DEB + RPM | Native Linux installation into PATH; packaging automation complete | **Oct 12, 2026** |
-| **Hardening** | Integrated release hardening | Clean-environment, consistency, security, metadata, checksum and cross-artifact validation | **Oct 12–25, 2026** |
-| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; release-blocking fixes only | **Oct 26, 2026** |
+| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | **Sep 18, 2026 — released** |
+| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation established | **Sep 18, 2026 — pushed** |
+| **v0.3.1** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios and extends the same release pipeline | **Sep 25, 2026** |
+| **v0.3.2** | DEB + RPM | Native Linux installation into PATH; binary, OCI, DEB and RPM distribution paths complete | **Oct 2, 2026** |
+| **v0.3.x release** | Complete Linux distribution milestone | Release the completed 0.3 series together after integrated validation of binary, OCI, DEB and RPM | **Oct 2, 2026** |
+| **Hardening** | Integrated release hardening | Clean-environment, consistency, security, metadata, checksum and cross-artifact validation | **Oct 3–18, 2026** |
+| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; release-blocking fixes only | **Oct 19, 2026** |
 | **v1.0.0** | First product deliverable | Linux-first, CI/CD-first product with repeatable automated releases | **Nov 2, 2026** |
 
-Versions are **quality gates, not calendar gates**.
+Versions are **quality gates, not calendar gates**. The v0.3.0, v0.3.1 and
+v0.3.2 checkpoints belong to one productization series; they are not
+separate public release events. The completed v0.3 series is released
+together after v0.3.2 passes integrated validation.
 
 ## 5. v0.3.0 --- Standalone Linux executable + release foundation
 
 ### Objective
 
-Prove kube-app can be consumed as a Linux CLI without requiring users or
-CI jobs to install Python.
+Establish the distributable Linux artifact and the release pipeline that
+the rest of the v0.3 series extends.
+
+### Status
+
+**Implementation complete and branch pushed.** Local validation passed with
+267 unit tests, packaged-binary smoke tests, workflow linting, and
+`git diff --check`. Hosted GitHub execution remains part of integrated
+v0.3 validation.
 
 ### Scope
 
--   Build Linux x86_64 standalone `kube-app`.
--   Bundle required Python runtime, `src/kubeapp`, and runtime
-    dependencies.
--   Keep runtime inputs external.
--   Introduce the core automated release workflow.
+-   Build Linux x86_64 standalone `kube-app` with PyInstaller one-file mode.
+-   Bundle the required Python runtime and runtime dependencies.
+-   Keep application files, referenced files, and external Helm charts external.
+-   Build on Ubuntu 22.04 for a defined Linux/glibc baseline.
+-   Add PR/branch CI for tests, build, and packaged-binary smoke checks.
+-   Add tag-driven release automation.
+-   Generate and verify SHA256 checksums.
+-   Ensure publication uses the same executable that passed smoke tests.
 
 ### Acceptance
 
@@ -138,21 +153,14 @@ CI jobs to install Python.
 ./kube-app render app.yaml -f k -o manifests.yaml
 ```
 
-Also verify environment substitution, referenced files, chart
-inspection, stdout/stderr separation, diagnostics, exit codes,
-output-file behavior, and execution in a clean Linux environment without
-the development virtualenv.
+Also verify environment substitution, referenced files, chart inspection,
+stdout/stderr separation, diagnostics, exit codes, output-file behavior,
+and execution without relying on host Python, pip, a virtualenv, or Helm.
 
-### Automation foundation
-
-**PR/branch CI** answers: *Is this change safe to merge?* It runs
-tests/build/smoke checks and publishes nothing.
-
-**Release workflow** answers: *Can this exact version become a
-distributable release?*
+### Release foundation
 
 ``` text
-version tag
+source revision
     |
     v
 tests
@@ -161,29 +169,29 @@ tests
 build standalone executable
     |
     v
-smoke test
+smoke test packaged executable
     |
     v
 SHA256 checksum
     |
     v
-publish release artifact
+release artifact
 ```
 
-Every later distribution mechanism extends this pipeline.
+v0.3.1 and v0.3.2 extend this same pipeline rather than creating separate
+application implementations.
 
-## 6. v0.4.0 --- OCI image for CI/CD-first consumption
+## 6. v0.3.1 --- OCI image for CI/CD-first consumption
 
 ### Objective
 
-Make CI/CD-first positioning operational. A pipeline should be able to
-select a versioned kube-app image without first installing Python or
-kube-app.
+Make the established standalone artifact directly consumable by CI/CD
+pipelines through a versioned OCI image.
 
 Conceptually:
 
 ``` yaml
-image: <registry>/kube-app:0.4.0
+image: <registry>/kube-app:0.3.1
 
 script:
   - kube-app validate app.yaml
@@ -193,47 +201,43 @@ script:
 The image should contain minimal Linux userspace, the established
 standalone executable, and required runtime necessities/certificates.
 
-Do not turn the official image into a general Kubernetes toolbox. Do not
-add Helm or kubectl merely because they are common in CI/CD.
-
 Test mounted workspaces, relative paths, referenced files, environment
 variables, external charts, generated artifacts, stdout/stderr,
 exit-code propagation, non-root execution where practical, and
-CI-friendly entrypoint behavior.
+CI-friendly invocation behavior.
 
-Extend the release workflow to build, test, tag, and publish the OCI
-image.
+Extend the existing release workflow to build, test, version, and publish
+the OCI artifact.
 
-## 7. v0.5.0 --- Native Linux packages
+## 7. v0.3.2 --- Native Linux packages
 
 ### Objective
 
-Provide native Linux installation while distributing the same
-application artifact.
+Complete the v0.3 distribution milestone with native Linux installation
+while continuing to distribute the same established application artifact.
 
 -   **DEB:** Debian / Ubuntu
 -   **RPM:** RHEL / Fedora / Rocky / Alma and rpm/dnf/yum ecosystems
 
-There is no need for separate yum and dnf application builds; both
-consume RPM packages.
+There is no need for separate yum and dnf application builds; both consume
+RPM packages.
 
 ### Scope
 
--   Produce versioned `.deb` and `.rpm`.
+-   Produce versioned `.deb` and `.rpm` packages.
 -   Package the established standalone executable.
 -   Install `kube-app` into a standard executable path.
--   Test install, upgrade, uninstall, permissions, and version metadata.
--   Do not introduce Python/pip installation inside packages.
--   Extend automation to build, test, checksum, and publish both
-    packages.
+-   Test fresh install, upgrade, uninstall, permissions, and version metadata.
+-   Extend automation to build, test, checksum, and publish both package formats.
+-   Validate binary, OCI, DEB, and RPM outputs together before the v0.3 series release.
 
-Initially, local package-file installation is sufficient. Full APT/RPM
-repository hosting can be evaluated separately.
+Initially, local package-file installation is sufficient. Hosted APT/RPM
+repositories can be evaluated separately.
 
 ## 8. Integrated release hardening and v1.0.0 release candidate
 
 Release hardening is not a separate minor release. It is built into the
-acceptance criteria for v0.3.0, v0.4.0, and v0.5.0, then validated across
+acceptance criteria for v0.3.0, v0.3.1, and v0.3.2, then validated across
 all distribution paths before the release candidate.
 
 By the RC, hardening must cover:
@@ -335,7 +339,7 @@ binary         OCI image      DEB / RPM
              publication
 ```
 
-Release automation begins in **v0.3.0** and is extended incrementally.
+Release automation begins in **v0.3.0** and is extended through **v0.3.1** and **v0.3.2** before the v0.3 series is released.
 
 ## 11. Post-1.0 release experience
 
@@ -462,28 +466,32 @@ intermediate implementation.
 ## 15. Working schedule
 
 ``` text
-Sep 18, 2026     v0.2.0  Architecture & QA
+Sep 18, 2026     v0.2.0  Architecture & QA — released
                      |
-Sep 28, 2026     v0.3.0  Standalone executable + release foundation
+Sep 18, 2026     v0.3.0  Standalone executable + release foundation — pushed
                      |
-Oct 5, 2026      v0.4.0  OCI image
+Sep 25, 2026     v0.3.1  OCI image
                      |
-Oct 12, 2026     v0.5.0  DEB + RPM
+Oct 2, 2026      v0.3.2  DEB + RPM
                      |
-Oct 12–25, 2026          Integrated release hardening
+Oct 2, 2026              Release completed v0.3 series together
                      |
-Oct 26, 2026     v1.0.0-rc.1
+Oct 3–18, 2026            Integrated release hardening
+                     |
+Oct 19, 2026     v1.0.0-rc.1
                      |
 Nov 2, 2026      v1.0.0
 ```
 
-**Working target:** November 2, 2026, approximately six weeks after v0.2.0. The
-three minor releases are capability milestones; release hardening is part
-of those milestones and the RC rather than a separate minor release.
+**Working target:** November 2, 2026. The v0.3.x checkpoints form one
+Linux-distribution milestone and are released together after v0.3.2;
+they are not separate public release events. Dates remain quality-gate
+targets rather than forced deadlines.
 
 ## Guiding principle
 
-> **v0.2.0 proves the architecture. v0.3.0--v0.5.0 add the three
-> distribution capabilities and their automation. The RC validates them
-> together, and v1.0.0 proves kube-app can be delivered and maintained as
-> a Linux-first, CI/CD-first platform product.**
+> **v0.2.0 proves the architecture. The v0.3.x series turns it into a
+> distributable Linux product through a standalone executable, OCI image,
+> native packages, and one automated release lifecycle. The completed
+> v0.3 series is released together; the RC then validates the whole product,
+> and v1.0.0 establishes the stable delivery baseline.**

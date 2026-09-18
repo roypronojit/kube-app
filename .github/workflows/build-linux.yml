@@ -18,10 +18,10 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       RELEASE_TAG: ${{ inputs.release-tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11.16'
           architecture: x64
@@ -47,7 +47,7 @@ jobs:
           docker pull ubuntu:22.04
           .tools/package-venv/bin/python scripts/smoke_binary.py "dist/kube-app-${version}-linux-x86_64" --container-image ubuntu:22.04
       - name: Upload tested artifact (not a release)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kube-app-linux-x86_64
           path: |
