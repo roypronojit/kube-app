@@ -1,6 +1,9 @@
+"""Legacy-schema compatibility; new Helm translation lives in renderers.helm."""
+
 from typing import Any
 
 from kubeapp.models import LegacyApplication as Application
+from kubeapp.renderers.helm import _split_image_reference as _split_image_reference
 
 
 def application_to_helm_values(application: Application) -> dict[str, Any]:
@@ -38,13 +41,3 @@ def application_to_helm_values(application: Application) -> dict[str, Any]:
         }
 
     return values
-
-
-def _split_image_reference(image: str) -> tuple[str, str]:
-    last_slash = image.rfind("/")
-    last_colon = image.rfind(":")
-
-    if last_colon > last_slash:
-        return image[:last_colon], image[last_colon + 1 :]
-
-    return image, "latest"

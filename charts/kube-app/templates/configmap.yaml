@@ -1,0 +1,11 @@
+{{- range .Values.configuration }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "kube-app.labels" $ | nindent 4 }}
+data:
+  {{- toYaml .data | nindent 2 }}
+{{- end }}

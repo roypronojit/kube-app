@@ -2,8 +2,8 @@
 
 > From architecture milestone to a Linux-first, CI/CD-first product.
 
-**Baseline:** v0.2.0 releases next week.\
-**Target:** approximately 5--7 weeks from v0.2.0 to v1.0.0.
+**Baseline:** v0.2.0 release: September 18, 2026.\
+**Target:** v1.0.0 target release: November 2, 2026, subject to quality gates.
 
 ## 1. Product direction
 
@@ -57,6 +57,12 @@ kube-app render app.yaml -f h -c ./existing-chart
 kube-app does **not** invoke `helm template` in this path. The external
 chart remains owned by the application/platform team.
 
+### v0.2.0 QA principle
+
+Fix genuine correctness issues, cross-layer consistency gaps, misleading
+diagnostics, and meaningful quality defects in functionality kube-app
+already claims to support. Do not delay v0.2.0 merely to expose
+additional Kubernetes functionality.
 
 ## 3. v1.0.0 product boundary
 
@@ -95,15 +101,15 @@ in RPM while the container uses `pip install`.
 
 ## 4. Release roadmap
 
-| Version | Primary milestone | Acceptance outcome | Timing |
+| Version | Primary milestone | Acceptance outcome | Target date |
 | --- | --- | --- | --- |
-| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | Sep 21. 2026 |
-| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | Sep 28. 2026 |
-| **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | Oct 05. 2026 |
-| **v0.5.0** | DEB + RPM | Native Linux installation into PATH | Oct 12. 2026 |
-| **v0.6.0** | Release hardening | All formats built/tested/published consistently; checksums, metadata, security and clean-environment tests | Oct 17–26. 2026 |
-| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; fixes only unless release-blocking | Oct 26–Nov 02. 2026 |
-| **v1.0.0** | First product deliverable | Linux-first, CI/CD-first product with repeatable automated releases | Nov 02–09. 2026 |
+| **v0.2.0** | Architecture & QA | Stable Kubernetes-manifest and Helm-values architecture; claimed capabilities consistent and tested | **Sep 18, 2026** |
+| **v0.3.0** | Standalone Linux executable + release foundation | Runs without host Python/pip/venv; PR CI and tag-driven release automation begin | **Sep 28, 2026** |
+| **v0.4.0** | OCI / CI-CD image | Versioned image works directly in pipeline/workspace scenarios | **Oct 5, 2026** |
+| **v0.5.0** | DEB + RPM | Native Linux installation into PATH; packaging automation complete | **Oct 12, 2026** |
+| **Hardening** | Integrated release hardening | Clean-environment, consistency, security, metadata, checksum and cross-artifact validation | **Oct 12–25, 2026** |
+| **v1.0.0-rc.1** | Product RC | Complete product consumed like an external user; release-blocking fixes only | **Oct 26, 2026** |
+| **v1.0.0** | First product deliverable | Linux-first, CI/CD-first product with repeatable automated releases | **Nov 2, 2026** |
 
 Versions are **quality gates, not calendar gates**.
 
@@ -224,33 +230,28 @@ consume RPM packages.
 Initially, local package-file installation is sufficient. Full APT/RPM
 repository hosting can be evaluated separately.
 
-## 8. v0.6.0 --- Release hardening
+## 8. Integrated release hardening and v1.0.0 release candidate
 
-### Objective
+Release hardening is not a separate minor release. It is built into the
+acceptance criteria for v0.3.0, v0.4.0, and v0.5.0, then validated across
+all distribution paths before the release candidate.
 
-Make releases routine rather than handcrafted. Prioritize operational
-quality over new kube-app features.
-
-Hardening covers:
+By the RC, hardening must cover:
 
 -   one source revision/version driving all artifacts
 -   consistent version metadata
 -   SHA256 checksums
--   clean-environment testing
--   representative Linux-family testing
--   executable/package permissions
--   host-library assumptions
--   relative path behavior
--   signal and exit-code propagation
+-   clean-environment and representative Linux-family testing
+-   executable/package permissions and host-library assumptions
+-   relative path, signal, and exit-code behavior
 -   container user/security posture
--   artifact naming
--   release failure handling
+-   deterministic artifact naming and release failure handling
 -   repeatable/reproducible release behavior where practical
 
 A failed required gate should stop publication rather than create a
 partially trusted release.
 
-## 9. v1.0.0 release candidate
+### v1.0.0-rc.1
 
 `v1.0.0-rc.1` is where kube-app is consumed like an external user would
 consume it.
@@ -262,7 +263,7 @@ behavior, documentation accuracy, and release-blocking bugs.
 Avoid feature expansion during RC. Create `rc.2` only if fixes justify
 another candidate.
 
-## 10. v1.0.0 --- First product deliverable
+## 9. v1.0.0 --- First product deliverable
 
 v1.0.0 does **not** need another headline feature. It promotes
 productization already proven through lower releases.
@@ -294,7 +295,7 @@ Linux binary       OCI image        packages
               published release
 ```
 
-## 11. CI/CD and release model
+## 10. CI/CD and release model
 
 ``` text
 feature / fix
@@ -336,7 +337,7 @@ binary         OCI image      DEB / RPM
 
 Release automation begins in **v0.3.0** and is extended incrementally.
 
-## 12. Post-1.0 release experience
+## 11. Post-1.0 release experience
 
 Future patches and enhancements should require engineering work on the
 product, not repeated manual packaging work.
@@ -368,7 +369,7 @@ v1.0.1 release
 
 The same model applies to future minor and major releases.
 
-## 13. Scope discipline
+## 12. Scope discipline
 
 From v0.2.0 to v1.0.0:
 
@@ -397,7 +398,7 @@ Helm, bundled kubectl, broad Kubernetes feature expansion.
 
 Linux ARM64 can be added later when justified.
 
-## 14. Platform Engineering story
+## 13. Platform Engineering story
 
 Python is the implementation language; it is not the main story.
 
@@ -433,7 +434,7 @@ The repository and public material should describe the **current
 architecture and its rationale**. It does not need to narrate every
 intermediate implementation.
 
-## 15. Definition of done for v1.0.0
+## 14. Definition of done for v1.0.0
 
 -   [ ] Standalone Linux executable works without host Python, pip, or
     virtualenv.
@@ -458,29 +459,31 @@ intermediate implementation.
 -   [ ] v1.0.0 uses the same automated process intended for v1.0.1 and
     later.
 
-## 16. Working schedule
+## 15. Working schedule
 
 ``` text
-Sep 21. 2026     v0.2.0
-                 |
-Sep 28. 2026     v0.3.0  Standalone executable + release foundation
-                 |
-Oct 05. 2026     v0.4.0  OCI image
-                 |
-Oct 12. 2026     v0.5.0  DEB + RPM
-                 |
-Oct 26. 2026     v0.6.0  Release hardening
-                 |
-Nov 02. 2026     v1.0.0-rc.1
-                 |
-Nov 09. 2026     v1.0.0
+Sep 18, 2026     v0.2.0  Architecture & QA
+                     |
+Sep 28, 2026     v0.3.0  Standalone executable + release foundation
+                     |
+Oct 5, 2026      v0.4.0  OCI image
+                     |
+Oct 12, 2026     v0.5.0  DEB + RPM
+                     |
+Oct 12–25, 2026          Integrated release hardening
+                     |
+Oct 26, 2026     v1.0.0-rc.1
+                     |
+Nov 2, 2026      v1.0.0
 ```
 
-**Working target:** approximately six weeks after v0.2.0, with a seventh
-week available for RC fixes.
+**Working target:** November 2, 2026, approximately six weeks after v0.2.0. The
+three minor releases are capability milestones; release hardening is part
+of those milestones and the RC rather than a separate minor release.
 
 ## Guiding principle
 
-> **v0.2.0 proves the architecture. v0.3.0--v0.6.0 productize it. v1.0.0
-> proves that kube-app can be delivered and maintained as a Linux-first,
-> CI/CD-first platform product.**
+> **v0.2.0 proves the architecture. v0.3.0--v0.5.0 add the three
+> distribution capabilities and their automation. The RC validates them
+> together, and v1.0.0 proves kube-app can be delivered and maintained as
+> a Linux-first, CI/CD-first platform product.**

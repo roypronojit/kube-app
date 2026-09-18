@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "Optional values consumed by the reference templates; defaults remain in values.yaml.",
+  "properties": {
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {},
+            "memory": {}
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {},
+            "memory": {}
+          }
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": {},
+        "name": {}
+      }
+    },
+    "storage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "name": {},
+        "size": {},
+        "storageClass": {},
+        "accessModes": {}
+      }
+    },
+    "command": {
+      "type": "array"
+    },
+    "args": {
+      "type": "array"
+    },
+    "readinessProbe": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {},
+            "port": {}
+          }
+        },
+        "initialDelaySeconds": {},
+        "periodSeconds": {},
+        "timeoutSeconds": {},
+        "failureThreshold": {},
+        "successThreshold": {}
+      }
+    },
+    "livenessProbe": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {},
+            "port": {}
+          }
+        },
+        "initialDelaySeconds": {},
+        "periodSeconds": {},
+        "timeoutSeconds": {},
+        "failureThreshold": {},
+        "successThreshold": {}
+      }
+    },
+    "startupProbe": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {},
+            "port": {}
+          }
+        },
+        "initialDelaySeconds": {},
+        "periodSeconds": {},
+        "timeoutSeconds": {},
+        "failureThreshold": {},
+        "successThreshold": {}
+      }
+    }
+  }
+}

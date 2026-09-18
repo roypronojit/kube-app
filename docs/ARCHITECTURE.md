@@ -11,18 +11,13 @@ Primary use is **CI/CD**; manual execution is mainly for testing.
 ## Flow
 
 ```text
-app.yaml
-  ↓
-Application Model
-  ↓
-Validation + Defaults
-  ↓
-Renderer
-  ↓
-Kubernetes YAML
+app.yaml -> Parse / Validate -> Application Model
+                                  |-- KubernetesRenderer -> Kubernetes manifests YAML
+                                  `-- external chart inspection + HelmRenderer -> Helm values YAML
+                                                                               + stderr diagnostics
 ```
 
-The Application Model must remain independent of the renderer.
+The Application Model remains independent of the selected output format.
 
 ## Public Schema
 
@@ -135,21 +130,87 @@ Only expose Kubernetes concepts when they represent a useful, common application
 
 Kubernetes remains the escape hatch for advanced requirements.
 
-## Renderer
+## Formats and CLI contract
 
-Keep rendering separate from the model:
+**One application specification. Deployment-native outputs.**
 
-```text
-Application Model
-      ↓
-Kubernetes Renderer
-      ↓
-Deployment / Service / ConfigMap / Secret / PVC / ...
-```
+Kubernetes emits Kubernetes manifests; Helm emits Helm values YAML. The Application
+Model is independent of the selected format. Helm generation does not invoke
+`helm template` and does not require a Helm executable or Kubernetes cluster.
 
-Renderers should be deterministic and testable without a live Kubernetes cluster.
+| Option | Behavior |
+| --- | --- |
+| `-f / --format` | `kubernetes`, `k8s`, `k` (default: Kubernetes), or `helm`, `h` |
+| `-n / --name` | Optional validated Application name override; omission preserves the input name |
+| `-c / --chart PATH` | Required for Helm; rejected for Kubernetes; resolved from the current working directory |
+| `-o / --output PATH` | Write YAML to this file instead of stdout; parent directories are created |
+| `-h / --help` | Standard help, including `kube-app render --help` |
 
-Helm may become another renderer later; it must not define the application model.
+The chart must be a directory containing Chart.yaml. It is inspected, never modified.
+Template content supplies best-effort evidence of Deployment, Service, ConfigMap,
+Secret and PVC capabilities; filenames do not determine support. Conditions are not
+executed, and computed kinds, includes and dependencies are not resolved.
+
+Nested keys in values.yaml and properties in values.schema.json form the union of
+the declared values contract. This is path discovery, not JSON Schema validation.
+Arrays are compared as whole values; schema references/composition are not resolved.
+Declared paths are SUPPORTED; absent paths in an explicit contract are UNSUPPORTED;
+insufficient information is UNKNOWN, not proof of missing support.
+
+Unsupported mappings and missing requested capabilities produce WARNING diagnostics.
+Unknown mappings may produce NOTE diagnostics. Supported mappings are silent;
+equivalent and redundant descendant diagnostics are suppressed. Diagnostics go only
+to stderr, while generated YAML goes only to stdout or the requested file. Warnings
+and notes are non-fatal (exit 0) and never silently filter or remap generated values.
+Arbitrary chart-specific key remapping is not performed: `replicaCount` will not be
+translated to `deployment.replicas`. Review the supplied chart's expected keys.
+
+Invalid applications, charts and generation failures exit 1; CLI usage errors exit 2.
+Rendering completes before output; file output uses a temporary file and atomic
+replacement so failures preserve an existing destination. Successful file output
+prints no YAML to stdout. Diagnostics never include resolved Secret values.
+
+The name override creates a newly validated Application without mutating the parsed
+model. Derived names, labels/selectors and PVC references follow the override;
+explicit container/init, ConfigMap, Secret and serviceAccount names stay unchanged.
+Thus a name override alone does not isolate explicitly named shared resources.
+
+Configuration and Secret file paths resolve relative to app.yaml, independently of
+working directory. Rendering resolves environment substitutions without changing the
+input model or files. Generated values can contain plaintext secrets: keep real
+credentials and real-secret outputs out of source control.
+
+Only `-v / --verbose` is deferred for later CLI consideration; it is not implemented.
+
+## Implementation boundaries
+
+`Renderer[Output]` accepts a validated Application and base_dir. KubernetesRenderer
+returns resource dictionaries; HelmRenderer returns the existing values dictionary.
+The CLI coordinates chart_inspection, value_mapping and diagnostics, then serializes
+the deployment-specific result. The model imports no renderer or chart code.
+
+Helm values retain name, replicaCount, image/container settings, ordered containers
+and initContainers, resources, probes, service configuration, configuration/secrets,
+storage, volumes and mounts. File parsing and substitution occur during translation.
+Single-container values use top-level fields; multiple containers use a containers list.
+The Helm translator supports ClusterIP, NodePort and LoadBalancer Service types.
+NodePort uses automatic Kubernetes port allocation; no explicit nodePort field is exposed.
+Digest image references, init ports and multiple/non-TCP ports remain unsupported.
+ExternalName, headless Services, explicit nodePort allocation, multiple Service ports
+and additional Service networking options are outside the current public model.
+
+charts/kube-app is a reference chart and internal template-test target, not a required
+implicit CLI dependency. Internal reference-chart resource comparisons do not imply
+that public Kubernetes and Helm outputs have the same type. Legacy helper APIs remain
+for compatibility; no chart is installed and no resources are created by generation.
+
+## Diagram status
+
+The existing [overview PNG](kube-app-0.2.0-overview.png) and
+[architecture PNG](kube-app-0.2.0-architecture.png) are outdated illustrations of the
+previous architecture, including old flags, Helm execution and shared manifest output.
+They are not the v0.2.0 contract. The text flow above is authoritative; image replacement
+is pending a separate review.
 
 ## Development Rule
 

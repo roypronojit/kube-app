@@ -1,14 +1,16 @@
 # Kube-App
 
-> **Version:** 0.1.1 · **Release status:** Development Preview
+> **Version:** 0.2.0 · **Release status:** Development Preview
 
 A lightweight developer-facing abstraction for deploying standardized applications to Kubernetes without requiring application developers to manage Kubernetes primitives directly.
 
-![Kube-App Overview](docs/kubeapp-overview.png)
+**One application specification. Deployment-native outputs.**
+
+[Previous overview diagram (outdated)](docs/kube-app-0.2.0-overview.png): it shows the superseded Helm execution and shared-output architecture. Use the current text flow below.
 
 ## Vision
 
-Kube-App provides a simple, declarative application specification that allows developers to describe **what their application needs**, while the platform translates that intent into Kubernetes resources.
+Kube-App provides a simple, declarative application specification that allows developers to describe **what their application needs**, while the platform translates that intent into Kubernetes manifests or Helm values.
 
 The goal is to create a consistent developer experience while allowing platform teams to own Kubernetes implementation details, platform defaults, security standards, and operational conventions.
 
@@ -62,7 +64,7 @@ service:
   targetPort: http
 ```
 
-Kube-App validates the application definition, applies platform defaults, and renders the required Kubernetes manifests.
+Kube-App validates the application definition, applies platform defaults, and generates the selected deployment-specific YAML.
 
 The objective is **not** to hide Kubernetes completely. Kubernetes remains the escape hatch for requirements that do not belong in the platform's paved road.
 
@@ -73,22 +75,10 @@ The objective is **not** to hide Kubernetes completely. Kubernetes remains the e
 The public YAML describes **application intent**, not Kubernetes implementation details.
 
 ```text
-app.yaml
-   │
-   ▼
-Application Model
-   │
-   ▼
-Validation + Defaults
-   │
-   ▼
-Kubernetes Renderer
-   │
-   ▼
-Kubernetes Manifests
-   │
-   ▼
-Kubernetes
+app.yaml -> Parse / Validate -> Application Model
+                                  |-- KubernetesRenderer -> Kubernetes manifests YAML
+                                  `-- external chart inspection + HelmRenderer -> Helm values YAML
+                                                                               + stderr diagnostics
 ```
 
 The application model remains independent of the rendering implementation.
@@ -110,6 +100,7 @@ Development currently requires:
 
 * Python 3.11 or later
 * pip
+* An existing chart directory for Helm values generation (no Helm executable required)
 
 A Kubernetes cluster is **not required** to validate applications or render manifests.
 
@@ -129,35 +120,78 @@ This installs the `kube-app` command.
 kube-app validate examples/basic/app.yaml
 ```
 
-## Render Kubernetes manifests
+## Formats and CLI contract
 
-Write the rendered manifests to standard output:
+**One application specification. Deployment-native outputs.**
+
+Kubernetes emits Kubernetes manifests; Helm emits Helm values YAML. The Application
+Model is independent of the selected format. Helm generation does not invoke
+`helm template` and does not require a Helm executable or Kubernetes cluster.
+
+| Option | Behavior |
+| --- | --- |
+| `-f / --format` | `kubernetes`, `k8s`, `k` (default: Kubernetes), or `helm`, `h` |
+| `-n / --name` | Optional validated Application name override; omission preserves the input name |
+| `-c / --chart PATH` | Required for Helm; rejected for Kubernetes; resolved from the current working directory |
+| `-o / --output PATH` | Write YAML to this file instead of stdout; parent directories are created |
+| `-h / --help` | Standard help, including `kube-app render --help` |
+
+The chart must be a directory containing Chart.yaml. It is inspected, never modified.
+Template content supplies best-effort evidence of Deployment, Service, ConfigMap,
+Secret and PVC capabilities; filenames do not determine support. Conditions are not
+executed, and computed kinds, includes and dependencies are not resolved.
+
+Nested keys in values.yaml and properties in values.schema.json form the union of
+the declared values contract. This is path discovery, not JSON Schema validation.
+Arrays are compared as whole values; schema references/composition are not resolved.
+Declared paths are SUPPORTED; absent paths in an explicit contract are UNSUPPORTED;
+insufficient information is UNKNOWN, not proof of missing support.
+
+Unsupported mappings and missing requested capabilities produce WARNING diagnostics.
+Unknown mappings may produce NOTE diagnostics. Supported mappings are silent;
+equivalent and redundant descendant diagnostics are suppressed. Diagnostics go only
+to stderr, while generated YAML goes only to stdout or the requested file. Warnings
+and notes are non-fatal (exit 0) and never silently filter or remap generated values.
+Arbitrary chart-specific key remapping is not performed: `replicaCount` will not be
+translated to `deployment.replicas`. Review the supplied chart's expected keys.
+
+Invalid applications, charts and generation failures exit 1; CLI usage errors exit 2.
+Rendering completes before output; file output uses a temporary file and atomic
+replacement so failures preserve an existing destination. Successful file output
+prints no YAML to stdout. Diagnostics never include resolved Secret values.
+
+The name override creates a newly validated Application without mutating the parsed
+model. Derived names, labels/selectors and PVC references follow the override;
+explicit container/init, ConfigMap, Secret and serviceAccount names stay unchanged.
+Thus a name override alone does not isolate explicitly named shared resources.
+
+Configuration and Secret file paths resolve relative to app.yaml, independently of
+working directory. Rendering resolves environment substitutions without changing the
+input model or files. Generated values can contain plaintext secrets: keep real
+credentials and real-secret outputs out of source control.
+
+Only `-v / --verbose` is deferred for later CLI consideration; it is not implemented.
+
+## Generate deployment-specific YAML
 
 ```sh
-kube-app render examples/basic/app.yaml
+kube-app render examples/basic/app.yaml -f kubernetes -o kubernetes-manifests.yaml
+kube-app render examples/basic/app.yaml -f helm -c charts/kube-app -o helm-values.yaml
+kube-app render examples/basic/app.yaml -f h -c charts/kube-app -n preview > values.yaml
 ```
 
-Or write them to a file:
-
-```sh
-kube-app render examples/basic/app.yaml \
-  -o examples/basic/rendered.yaml
-```
-
-The same commands can also be invoked through Python:
-
-```sh
-python -m kubeapp validate examples/basic/app.yaml
-python -m kubeapp render examples/basic/app.yaml
-```
-
----
+`charts/kube-app` is an explicit reference chart for these commands, not an implicit
+requirement. The reference contract covers all three examples without mapping diagnostics.
+Other charts' keys may differ; diagnostics flag mapping uncertainty.
+The commands are also available as `python -m kubeapp`.
 
 # Application Model
 
 Kube-App uses **one application schema**.
 
-Basic, medium, and advanced applications are not different modes or APIs. They are progressively richer uses of the same model.
+Basic, medium, and advanced applications are progressively richer uses of the same model.
+All three examples work unchanged with either renderer; renderer selection is a CLI option,
+not part of the application YAML.
 
 ## Basic
 
@@ -338,7 +372,7 @@ storage:
     - ReadWriteOnce
 ```
 
-Kube-App renders a Kubernetes **PersistentVolumeClaim (PVC)**.
+Kubernetes format renders a **PersistentVolumeClaim (PVC)**; Helm format emits storage values.
 
 It does **not** create PersistentVolumes directly.
 
@@ -354,6 +388,10 @@ Applications can expose a service with a small application-level definition:
 service:
   port: 8080
 ```
+
+Supported Service types are `ClusterIP`, `NodePort` and `LoadBalancer` in both
+Kubernetes manifests and Helm values. NodePort uses automatic Kubernetes allocation;
+explicit nodePort numbers and additional Service networking options are not exposed.
 
 Service options can also be specified:
 
@@ -397,26 +435,8 @@ Additional workload behavior is generated from the application model, including:
 * persistent storage mounts
 * service account references
 
-Rendered example manifests are committed beside their corresponding application definitions:
-
-```text
-examples/
-├── basic/
-│   ├── app.yaml
-│   └── rendered.yaml
-├── medium/
-│   ├── app.yaml
-│   └── rendered.yaml
-└── advanced/
-    ├── app.yaml
-    ├── rendered.yaml
-    ├── config/
-    │   └── catalog.properties
-    └── secrets/
-        └── catalog-db.env
-```
-
----
+Each example retains app.yaml and separate kubernetes-manifests.yaml and
+helm-values.yaml artifacts. See the [examples guide](examples/README.md).
 
 # Testing
 
@@ -443,7 +463,8 @@ The tests cover:
 * example output comparisons
 * compatibility behavior
 
-No running Kubernetes cluster or Helm installation is required for the Python test suite.
+No Kubernetes cluster is required. Optional internal reference-chart tests require Helm
+and skip when unavailable; public CLI values-generation tests do not require Helm.
 
 See the [test guide](tests/README.md) for details.
 
@@ -453,35 +474,19 @@ See the [test guide](tests/README.md) for details.
 
 Kube-App separates the developer-facing application contract from validation and Kubernetes rendering.
 
-![Kube-App Architecture](docs/kubeapp-architecture.png)
+[Previous architecture diagram (outdated)](docs/kube-app-0.2.0-architecture.png): replacement is pending separate review; the image is not the current CLI contract.
 
 The key implementation rule is:
 
 > **The application model must remain independent of the renderer.**
 
-This separation allows the Kubernetes implementation to evolve and alternative rendering approaches to be introduced later without redefining the developer-facing application contract.
+Both outputs consume the same validated Application. KubernetesRenderer emits resources;
+HelmRenderer emits values, with external-chart inspection and stderr diagnostics.
+See [Architecture](docs/ARCHITECTURE.md) for implementation boundaries and
+[Rendering](docs/RENDERING.md) for current Helm translation limits.
 
-See [Architecture](docs/ARCHITECTURE.md) for the architectural source of truth.
-
----
-
-# Helm Status
-
-Helm integration is currently **deferred**.
-
-The repository contains a Helm chart and retained compatibility code for Helm values generation, but the public `kube-app render` command does **not** use Helm.
-
-The current path renders Kubernetes manifests directly from the application model.
-
-The existing chart can be checked independently with:
-
-```sh
-helm lint charts/kube-app
-```
-
-A future Helm renderer may be introduced as an alternative rendering backend, but Helm must not define the public application model.
-
----
+The bundled chart remains a useful reference and internal test fixture. The active CLI
+uses only the chart explicitly supplied with --chart and never executes Helm.
 
 # Distribution
 
@@ -506,7 +511,7 @@ Kube-App is intentionally being developed incrementally.
 
 ## v0.1 — Core Application Abstraction
 
-Current focus:
+Implemented foundation:
 
 * developer-facing application schema
 * typed application model
@@ -520,6 +525,12 @@ Current focus:
 * service account references
 * deterministic examples
 * automated tests
+
+## v0.2.0 ? Deployment-native outputs
+
+* Kubernetes manifests or Helm values from one application specification
+* Explicit external-chart inspection, declared value contracts and non-fatal diagnostics
+* Name overrides, separate YAML/diagnostic streams and preserved output on failure
 
 ## Platform Defaults and Security
 
@@ -630,8 +641,9 @@ kubeApp/
 │       ├── __main__.py
 │       ├── cli.py
 │       ├── parser.py
-│       ├── models.py
-│       ├── manifests.py
+│       ├── models/
+│       ├── manifests/
+│       ├── renderers/
 │       └── generators.py
 │
 ├── examples/
@@ -649,7 +661,8 @@ kubeApp/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── RENDERING.md
-│   └── kubeapp-overview.png
+│   ├── kube-app-0.2.0-architecture.png
+│   └── kube-app-0.2.0-overview.png
 │
 ├── charts/
 │   └── kube-app/

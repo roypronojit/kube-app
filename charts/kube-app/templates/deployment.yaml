@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "kube-app.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.scaling.minReplicas }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "kube-app.selectorLabels" . | nindent 6 }}
@@ -14,14 +14,78 @@ spec:
       labels:
         {{- include "kube-app.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "kube-app.serviceAccountName" . }}
-      containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
+      serviceAccountName: {{ include "kube-app.serviceAccountName" . | quote }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- range . }}
+        - name: {{ .containerName }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          {{- with .command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .resources }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+        {{- range $container := (.Values.containers | default (list .Values)) }}
+        - name: {{ $container.containerName }}
+          image: "{{ $container.image.repository }}:{{ $container.image.tag }}"
+          imagePullPolicy: {{ $container.image.pullPolicy }}
+          {{- with $container.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $container.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $container.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- range $name := list "readinessProbe" "livenessProbe" "startupProbe" }}
+          {{- with index $container $name }}
+          {{ $name }}:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- with $container.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $container.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $container.ports }}
+          ports:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml ($container.resources | default dict) | nindent 12 }}
+        {{- end }}

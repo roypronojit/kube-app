@@ -1,27 +1,40 @@
-name: ""
+name: kube-app
+replicaCount: 1
+containerName: kube-app
+containers: []
+initContainers: []
 
 image:
   repository: nginx
   tag: latest
   pullPolicy: IfNotPresent
 
+ports:
+  - name: http
+    containerPort: 8080
+    protocol: TCP
+
 service:
   enabled: true
   type: ClusterIP
   port: 80
+  targetPort: http
 
 resources: {}
 
-scaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 1
+configuration: []
+secrets: []
+envFrom: []
+env: []
+storage: null
+volumes: []
+volumeMounts: []
+readinessProbe: null
+livenessProbe: null
+startupProbe: null
 
 ingress:
   enabled: false
 
 serviceAccount:
-  create: true
-
-podDisruptionBudget:
-  enabled: false
+  create: false

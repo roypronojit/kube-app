@@ -1,0 +1,25 @@
+name: hello-world
+replicaCount: 2
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: http
+serviceAccount:
+  create: false
+containerName: hello-world
+image:
+  repository: nginxinc/nginx-unprivileged
+  tag: '1.27'
+  pullPolicy: IfNotPresent
+ports:
+- name: http
+  containerPort: 8080
+  protocol: TCP
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
